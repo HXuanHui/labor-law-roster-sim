@@ -22,7 +22,8 @@ import { ShiftSettingsModal } from './components/ShiftSettingsModal';
 import { EmployeeSettingsModal } from './components/EmployeeSettingsModal';
 import { SetupWizardModal } from './components/SetupWizardModal';
 import { UserGuideModal } from './components/UserGuideModal';
-import { Calendar, LayoutGrid, Users, Plus, ShieldCheck, Download, AlertTriangle, Sparkles, BookOpen, Trash2 } from 'lucide-react';
+import { ExportCalendarModal } from './components/ExportCalendarModal';
+import { Calendar, LayoutGrid, Users, Plus, ShieldCheck, Download, AlertTriangle, Sparkles, BookOpen, Trash2, Printer } from 'lucide-react';
 import { addDays, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
 
 export default function App() {
@@ -37,6 +38,7 @@ export default function App() {
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [isUserGuideModalOpen, setIsUserGuideModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Setup Wizard panel state (open by default if no saved employees exist)
   const [isSetupWizardModalOpen, setIsSetupWizardModalOpen] = useState(() => {
@@ -532,7 +534,7 @@ export default function App() {
           onOpenUserGuideModal={() => setIsUserGuideModalOpen(true)}
           onClearAllData={handleClearAllData}
           onExportJSON={handleExportJSON}
-          onPrint={() => window.print()}
+          onPrint={() => setIsExportModalOpen(true)}
           onResetSchedules={handleResetSchedules}
           violationCount={violations.filter((v) => v.severity === 'error').length}
         />
@@ -558,29 +560,40 @@ export default function App() {
             )}
           </div>
 
-          <div className="flex bg-[#F8F7EB] p-1 rounded-xl border border-[#E9E7D4] self-end sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
             <button
-              onClick={() => setViewMode('month')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                viewMode === 'month'
-                  ? 'bg-[#5A5A40] text-white shadow-sm'
-                  : 'text-[#8A8A70] hover:text-[#2D2D2D]'
-              }`}
+              onClick={() => setIsExportModalOpen(true)}
+              className="px-3 py-1.5 rounded-xl bg-[#5A5A40]/10 hover:bg-[#5A5A40]/20 text-[#5A5A40] border border-[#5A5A40]/30 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="開啓年曆 / 月曆繪出與列印面版"
             >
-              <Calendar className="w-4 h-4" />
-              <span>月曆模式</span>
+              <Printer className="w-4 h-4 text-[#5A5A40]" />
+              <span>匯出年曆 / 月曆</span>
             </button>
-            <button
-              onClick={() => setViewMode('timeline')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                viewMode === 'timeline'
-                  ? 'bg-[#5A5A40] text-white shadow-sm'
-                  : 'text-[#8A8A70] hover:text-[#2D2D2D]'
-              }`}
-            >
-              <LayoutGrid className="w-4 h-4" />
-              <span>全人員矩陣模式</span>
-            </button>
+
+            <div className="flex bg-[#F8F7EB] p-1 rounded-xl border border-[#E9E7D4]">
+              <button
+                onClick={() => setViewMode('month')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  viewMode === 'month'
+                    ? 'bg-[#5A5A40] text-white shadow-sm'
+                    : 'text-[#8A8A70] hover:text-[#2D2D2D]'
+                }`}
+              >
+                <Calendar className="w-4 h-4" />
+                <span>月曆模式</span>
+              </button>
+              <button
+                onClick={() => setViewMode('timeline')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  viewMode === 'timeline'
+                    ? 'bg-[#5A5A40] text-white shadow-sm'
+                    : 'text-[#8A8A70] hover:text-[#2D2D2D]'
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+                <span>全人員矩陣模式</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -735,6 +748,16 @@ export default function App() {
         }}
         onSelectEmployee={setSelectedEmployeeId}
         selectedEmployeeId={selectedEmployeeId}
+      />
+
+      <ExportCalendarModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        employees={employees}
+        selectedEmployeeId={selectedEmployeeId}
+        shiftTypes={shiftTypes}
+        nationalHolidays={nationalHolidays}
+        currentSystem={currentSystem}
       />
     </div>
   );

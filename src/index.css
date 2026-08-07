@@ -6,3 +6,36 @@
     color: #2D2D2D;
   }
 }
+
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide background elements when printing modal */
+  .no-print,
+  nav,
+  header,
+  .sticky {
+    display: none !important;
+  }
+
+  /* Ensure modal container fills page */
+  .fixed.inset-0 {
+    position: absolute !important;
+    inset: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Print page break helpers */
+  .page-break,
+  .print\:break-before-page {
+    break-before: page !important;
+    page-break-before: always !important;
+  }
+}

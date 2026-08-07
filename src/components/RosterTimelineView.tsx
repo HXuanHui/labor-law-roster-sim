@@ -145,7 +145,7 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
                   }`}
                 >
                   {/* Sticky Employee Name Column */}
-                  <td className="p-3 sticky left-0 bg-white z-10 border-r border-[#E9E7D4] font-medium">
+                  <td className={`p-3 sticky left-0 z-10 border-r border-[#E9E7D4] font-medium ${isSelected ? 'bg-[#F2F1E8]' : 'bg-white'}`}>
                     <div className="flex items-center space-x-2">
                       <div className="w-7 h-7 rounded-full bg-[#5A5A40]/20 text-[#5A5A40] font-bold flex items-center justify-center text-xs border border-[#5A5A40]/30">
                         {emp.name[0]}

@@ -86,7 +86,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
     onChangeYearMonth(today.getFullYear(), today.getMonth() + 1);
   };
 
-  // OS-Style Date Click Handler (Shift+Click for range, Ctrl/Cmd+Click for toggle)
+  // OS-Style Date Click Handler (Shift+Click for range, Ctrl/Cmd+Click or multi-tap for toggle)
   const handleDateClick = (dateStr: string, e: React.MouseEvent) => {
     // Only handle left mouse click
     if (e.button !== 0) return;
@@ -102,18 +102,25 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
         const range = daysGrid.slice(minIdx, maxIdx + 1).map((d) => d.dateStr);
         setSelectedDates(range);
       }
-    } else if (e.ctrlKey || e.metaKey) {
-      // Toggle date selection
+    } else if (e.ctrlKey || e.metaKey || selectedDates.length > 0) {
+      // Toggle date selection for touch/mobile or Ctrl/Cmd click
       if (selectedDates.includes(dateStr)) {
-        setSelectedDates((prev) => prev.filter((d) => d !== dateStr));
+        const next = selectedDates.filter((d) => d !== dateStr);
+        setSelectedDates(next);
+        if (next.length === 0) setLastClickedDate(null);
       } else {
         setSelectedDates((prev) => [...prev, dateStr]);
+        setLastClickedDate(dateStr);
       }
-      setLastClickedDate(dateStr);
     } else {
-      // Single date select
-      setSelectedDates([dateStr]);
-      setLastClickedDate(dateStr);
+      // Single date select or toggle off
+      if (selectedDates.includes(dateStr) && selectedDates.length === 1) {
+        setSelectedDates([]);
+        setLastClickedDate(null);
+      } else {
+        setSelectedDates([dateStr]);
+        setLastClickedDate(dateStr);
+      }
     }
   };
 
@@ -331,52 +338,6 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
         </div>
       )}
 
-      {/* Batch Selection Action Bar */}
-      {selectedDates.length > 0 && (
-        <div className="bg-[#5A5A40] text-white p-3 text-xs flex flex-wrap items-center justify-between gap-3 shadow-inner animate-in slide-in-from-top duration-200">
-          <div className="flex items-center space-x-2">
-            <CheckSquare className="w-4 h-4 text-[#E9E7D4]" />
-            <span className="font-bold">
-              已選取 <span className="font-mono text-amber-200 underline">{selectedDates.length}</span> 個日期
-            </span>
-            <span className="text-[11px] text-[#E9E7D4]/80 hidden sm:inline">
-              (提示：按 <kbd className="px-1.5 py-0.5 bg-black/30 rounded font-mono text-[10px] text-white border border-white/20">ESC</kbd> 鍵可隨時取消選取)
-            </span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] text-[#E9E7D4] hidden md:inline">批次套用班別：</span>
-            {allShiftTypes.map((st) => (
-              <button
-                key={st.id}
-                onClick={() => handleApplyBatchShift(st.id)}
-                className="px-2 py-1 rounded-lg text-[11px] font-bold shadow-sm transition-transform active:scale-95 cursor-pointer hover:opacity-90 border border-white/20"
-                style={{ backgroundColor: st.color, color: st.textColor }}
-              >
-                {st.name}
-              </button>
-            ))}
-            <button
-              onClick={() => handleApplyBatchShift('shift_empty')}
-              className="px-2 py-1 rounded-lg text-[11px] font-bold bg-white/20 text-white hover:bg-white/30 transition-colors cursor-pointer"
-            >
-              清空
-            </button>
-            <div className="h-4 w-px bg-white/30 mx-1" />
-            <button
-              onClick={() => {
-                setSelectedDates([]);
-                setLastClickedDate(null);
-              }}
-              className="px-2 py-1 rounded-lg text-[11px] font-bold bg-red-500/80 hover:bg-red-500 text-white transition-colors cursor-pointer flex items-center gap-1"
-            >
-              <XCircle className="w-3.5 h-3.5" />
-              <span>取消選取 (ESC)</span>
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Weekday Columns Header */}
       <div className="grid grid-cols-7 bg-[#F8F7EB] border-b border-[#E9E7D4] text-center text-xs font-bold text-[#8A8A70] py-2">
         {weekHeaders.map((wh, idx) => (
@@ -548,21 +509,36 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
 
       {/* Floating Multi-Date Selection Action Bar */}
       {selectedDates.length > 0 && (
-        <div className="sticky bottom-4 mx-auto max-w-3xl w-[92%] bg-[#2D2D2D] text-white p-3 rounded-2xl shadow-2xl border border-[#5A5A40] z-50 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in slide-in-from-bottom duration-200">
-          <div className="flex items-center space-x-2">
-            <span className="bg-[#5A5A40] text-white p-1.5 rounded-xl font-bold">
+        <div className="sticky bottom-4 mx-auto max-w-3xl w-[94%] sm:w-[92%] bg-[#2D2D2D] text-white p-3 rounded-2xl shadow-2xl border border-[#5A5A40] z-50 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in slide-in-from-bottom duration-200">
+          <div className="flex items-center space-x-2 text-left w-full sm:w-auto">
+            <span className="bg-[#5A5A40] text-white p-1.5 rounded-xl font-bold flex-shrink-0">
               <Layers className="w-4 h-4" />
             </span>
-            <div>
+            <div className="flex-1">
               <div className="text-xs font-bold flex items-center gap-1.5">
                 <span>已選取 <span className="text-yellow-400 font-mono text-sm">{selectedDates.length}</span> 個日期</span>
               </div>
-              <p className="text-[10px] text-gray-300">按住 Shift+點擊可連續範圍選取，Ctrl/Cmd+點擊可多選。點選下方班別進行批次套用：</p>
+              <p className="text-[10px] text-gray-300 hidden md:block">
+                點擊日期可多選或取消，長按 Shift 可範圍連選。點選班別即刻套用：
+              </p>
+              <p className="text-[10px] text-gray-300 block md:hidden">
+                點擊日期可多選／取消，點選班別即可批次套用：
+              </p>
             </div>
+
+            <button
+              onClick={() => {
+                setSelectedDates([]);
+                setLastClickedDate(null);
+              }}
+              className="sm:hidden text-xs bg-red-500/20 text-red-300 hover:bg-red-500/40 px-2 py-1 rounded-lg border border-red-500/30 flex-shrink-0 font-bold"
+            >
+              取消選取
+            </button>
           </div>
 
           {/* Quick Shift Selection Buttons */}
-          <div className="flex items-center space-x-1.5 flex-wrap justify-center">
+          <div className="flex items-center space-x-1.5 flex-wrap justify-center sm:justify-end w-full sm:w-auto">
             {allShiftTypes.map((st) => (
               <button
                 key={st.id}
@@ -584,13 +560,17 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
               空班
             </button>
 
-            {/* Cancel Selection */}
+            {/* Cancel Selection (Desktop) */}
             <button
-              onClick={() => setSelectedDates([])}
-              className="p-1 text-gray-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+              onClick={() => {
+                setSelectedDates([]);
+                setLastClickedDate(null);
+              }}
+              className="hidden sm:flex items-center gap-1 px-2.5 py-1 bg-red-500/80 hover:bg-red-500 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
               title="取消框選"
             >
-              <XCircle className="w-4 h-4" />
+              <XCircle className="w-3.5 h-3.5" />
+              <span>取消</span>
             </button>
           </div>
         </div>

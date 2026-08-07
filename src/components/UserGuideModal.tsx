@@ -126,10 +126,10 @@ export const UserGuideModal: React.FC<UserGuideModalProps> = ({ isOpen, onClose 
               <div className="bg-[#F8F7EB] p-3.5 rounded-xl border border-[#E9E7D4] space-y-1.5">
                 <div className="font-bold text-[#5A5A40] flex items-center gap-1.5">
                   <CheckSquare className="w-4 h-4 text-[#5A5A40]" />
-                  <span>點選與批次劃班 (ESC 取消)</span>
+                  <span>點選與批次劃班</span>
                 </div>
                 <p className="text-[#8A8A70]">
-                  點擊月曆格子可開啟班別選單。按住滑鼠可選擇多個日期，頂部會出現「批次套用工具列」，可一次將班別賦予多個日期。按 <kbd className="px-1 py-0.5 bg-black/10 rounded font-mono text-[10px]">ESC</kbd> 鍵可取消選取。
+                  點擊月曆格子可開啟班別選單。點選多個日期時會出現「批次套用工具列」，可一次將班別賦予多個日期。
                 </p>
               </div>
 
