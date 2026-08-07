@@ -42,7 +42,7 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
       {/* Top Banner Status Header (Clickable to Toggle Collapse/Expand) */}
       <div
         onClick={() => setIsCollapsed((prev) => !prev)}
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E9E7D4] pb-3 cursor-pointer select-none hover:bg-[#F8F7EB]/80 transition-colors rounded-xl p-2 -m-2"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E9E7D4] pb-3.5 mb-2 cursor-pointer select-none hover:bg-[#F8F7EB]/80 transition-colors rounded-xl px-2.5 py-2 -mx-2.5 -mt-2"
         title={isCollapsed ? "點擊展開班表檢核表" : "點擊縮小班表檢核表"}
       >
         <div className="flex items-center space-x-3">
@@ -117,7 +117,7 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
       {!isCollapsed && (
         <>
           {/* 4 Key Metrics Bar */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-1">
             {/* Metric 1: Cycle Normal Hours */}
             <div
               className={`p-3 rounded-xl border ${
