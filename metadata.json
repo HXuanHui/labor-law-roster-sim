@@ -1,0 +1,6 @@
+{
+  "name": "排班模擬系統",
+  "description": "離線排班工具，支援台灣勞基法一般制、2週、4週與8週變形工時檢核，具備班別方塊平移與合法邊界卡位防誤移功能及國定假日設定。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
