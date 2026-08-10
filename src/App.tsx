@@ -36,13 +36,16 @@ import { ShiftSettingsModal } from './components/ShiftSettingsModal';
 import { EmployeeSettingsModal } from './components/EmployeeSettingsModal';
 import { SetupWizardModal } from './components/SetupWizardModal';
 import { UserGuideModal } from './components/UserGuideModal';
+import { DisclaimerModal } from './components/DisclaimerModal';
+import { LegalInfoModal } from './components/LegalInfoModal';
 import { ExportCalendarModal } from './components/ExportCalendarModal';
+import { SimpleInfoModal } from './components/SimpleInfoModal';
 import {
   collectNationalShiftCandidates,
   MakeupSourcePickerModal,
 } from './components/MakeupSourcePickerModal';
 import { buildMakeupHolidayName } from './utils/holidayMakeup';
-import { Calendar, LayoutGrid, Sparkles } from 'lucide-react';
+import { Calendar, Heart, LayoutGrid, Sparkles } from 'lucide-react';
 import { addDays, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
 
 export default function App() {
@@ -62,6 +65,11 @@ export default function App() {
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [isUserGuideModalOpen, setIsUserGuideModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isDisclaimerModalOpen, setIsDisclaimerModalOpen] = useState(false);
+  const [isLegalInfoModalOpen, setIsLegalInfoModalOpen] = useState(false);
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+  /** 初始化完成後：關閉使用說明時再自動開啟免責說明。 */
+  const [openDisclaimerAfterGuide, setOpenDisclaimerAfterGuide] = useState(false);
 
   // Setup Wizard panel state (open by default if no saved employees exist)
   const [isSetupWizardModalOpen, setIsSetupWizardModalOpen] = useState(() => {
@@ -947,6 +955,9 @@ export default function App() {
           onOpenEmployeeModal={() => setIsEmployeeModalOpen(true)}
           onOpenSetupWizardModal={() => setIsSetupWizardModalOpen(true)}
           onOpenUserGuideModal={() => setIsUserGuideModalOpen(true)}
+          onOpenDisclaimerModal={() => setIsDisclaimerModalOpen(true)}
+          onOpenLegalModal={() => setIsLegalInfoModalOpen(true)}
+          onOpenAboutModal={() => setIsAboutModalOpen(true)}
           onClearAllData={handleClearAllData}
           onExportJSON={handleExportJSON}
           onPrint={() => setIsExportModalOpen(true)}
@@ -1146,6 +1157,8 @@ export default function App() {
         onCompleteSetup={() => {
           localStorage.setItem('perpetual_setup_completed', 'true');
           setIsSetupWizardModalOpen(false);
+          // 初始化後先開使用說明；關閉後再接免責說明
+          setOpenDisclaimerAfterGuide(true);
           setIsUserGuideModalOpen(true);
           if (employees.length > 0 && !selectedEmployeeId) {
             setSelectedEmployeeId(employees[0].id);
@@ -1156,8 +1169,37 @@ export default function App() {
       {/* User Guide Modal */}
       <UserGuideModal
         isOpen={isUserGuideModalOpen}
-        onClose={() => setIsUserGuideModalOpen(false)}
+        onClose={() => {
+          setIsUserGuideModalOpen(false);
+          // 僅初始化流程會接續開啟免責；日常手動開啟使用說明不會觸發
+          if (openDisclaimerAfterGuide) {
+            setOpenDisclaimerAfterGuide(false);
+            setIsDisclaimerModalOpen(true);
+          }
+        }}
       />
+
+      <DisclaimerModal
+        isOpen={isDisclaimerModalOpen}
+        onClose={() => setIsDisclaimerModalOpen(false)}
+      />
+
+      <LegalInfoModal
+        isOpen={isLegalInfoModalOpen}
+        onClose={() => setIsLegalInfoModalOpen(false)}
+      />
+
+      <SimpleInfoModal
+        isOpen={isAboutModalOpen}
+        onClose={() => setIsAboutModalOpen(false)}
+        title="關於我"
+        subtitle="開發者與贊助資訊"
+        icon={<Heart className="w-5 h-5" />}
+      >
+        <p className="text-[#5A5A40]">
+          這裡之後會放開發者簡介與贊助資訊（例如贊助連結或 QR Code）。目前為預留頁面。
+        </p>
+      </SimpleInfoModal>
 
       {/* 手動「調」：從畫面上的「國」班挑選來源 */}
       <MakeupSourcePickerModal

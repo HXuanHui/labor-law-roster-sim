@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 /**
- * 使用說明指南章節定義。
+ * 使用說明操作章節定義（含截圖）。
  */
 interface GuideSection {
   /** 章節識別碼。 */
@@ -44,12 +44,12 @@ interface UserGuideModalProps {
   onClose: () => void;
 }
 
-/** 使用說明主軸章節（點選、拖曳、釘選、診斷、加班／換休）。 */
+/** 使用說明操作主軸章節（不含免責／法規；該兩項另有獨立入口）。 */
 const GUIDE_SECTIONS: GuideSection[] = [
   {
     id: 'select',
     title: '點選與批次換班',
-    icon: <CheckSquare className="w-4 h-4" />,
+    icon: <CheckSquare className="w-5 h-5" />,
     paragraphs: [
       '在班表格子上點擊即可選取日期；可單選一日，也可連續點選多日進行多選。',
       '選取後畫面下方會出現深色操作列，顯示已選天數與可用班別按鈕；點擊班別即可一次套用至所有選取日期。',
@@ -66,7 +66,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
   {
     id: 'drag',
     title: '拖曳交換班別',
-    icon: <ArrowRightLeft className="w-4 h-4" />,
+    icon: <ArrowRightLeft className="w-5 h-5" />,
     paragraphs: [
       '除了點選套用，也可直接拖曳班別卡片與其他日期交換位置，適合微調既有排班順序。',
       '請抓住班別卡片上方的六點拖曳把手（⋮⋮）再拖到目標日期放開。',
@@ -83,7 +83,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
   {
     id: 'pin',
     title: '大頭針釘選班別',
-    icon: <Pin className="w-4 h-4" />,
+    icon: <Pin className="w-5 h-5" />,
     paragraphs: [
       '點擊班別卡片上方工具列的大頭針圖示，可將該日班別釘選鎖定。',
       '已釘選的日期會以橘色大頭針／邊框標示，可避免後續批次套用或輔助調整時被意外覆蓋。',
@@ -99,27 +99,27 @@ const GUIDE_SECTIONS: GuideSection[] = [
   },
   {
     id: 'audit',
-    title: '診斷非法排班',
-    icon: <ShieldCheck className="w-4 h-4" />,
+    title: '檢視可能不合規排班',
+    icon: <ShieldCheck className="w-5 h-5" />,
     paragraphs: [
-      '排班過程中，系統會即時依所選工時制度（一般／2 週／4 週／8 週變形工時）檢核勞基法規範。',
-      '「班表檢核表」會彙總正常工時、延長工時、最大連班天數與例休天數；若有違規，頂部會顯示嚴重違規提示。',
-      '下方「勞動檢查診斷明細」會列出法條與對應日期，可點選對應日期連結，快速定位問題日子。',
+      '排班過程中，系統會即時依所選工時制度（一般／2 週／4 週／8 週變形工時）與內建規則進行模擬檢核。',
+      '「班表檢核表」會彙總正常工時、延長工時、最大連班天數與例休天數；若有觸發項目，頂部會顯示需留意提示。',
+      '下方「規則檢核明細／風險提示」會列出法條與對應日期，可點選對應日期連結，快速定位問題日子。',
     ],
     steps: [
       '先確認上方已選對正確的工時制度與同仁。',
-      '檢視班表檢核表：紅色指標代表超出法定上限（例如週期正常工時超標）。',
-      '展開診斷明細閱讀違規說明，並點「對應日期」在班表上定位。',
-      '可點「勞檢失敗（點此查看法規說明）」進一步了解相關法規依據。',
+      '檢視班表檢核表：紅色指標代表超出規則上限（例如週期正常工時超標）。',
+      '展開規則檢核明細閱讀說明，並點「對應日期」在班表上定位。',
+      '可點「模擬檢核：發現 N 項需留意（點擊查看法規說明）」進一步了解相關規則依據；完整法條摘要亦見頂部「說明 → 法規說明」。',
     ],
     imageSrc: '/guide/04-labor-audit.png',
-    imageAlt: '班表檢核表與勞動檢查診斷明細畫面',
-    imageCaption: '範例：週期正常工時超標時的違規診斷畫面',
+    imageAlt: '班表檢核表與規則檢核明細畫面',
+    imageCaption: '範例：週期正常工時超標時的模擬檢核畫面',
   },
   {
     id: 'overtime',
     title: '紀錄加班與換休',
-    icon: <Clock3 className="w-4 h-4" />,
+    icon: <Clock3 className="w-5 h-5" />,
     paragraphs: [
       '在已排工作班的日期卡片底部，可看到顯示工時（如 8H）與「＋／−」按鈕，用來登錄延長工時或支用換休。',
       '按「＋」會以 0.5 小時為單位增加延長工時（卡片顯示總工時會上升，例如 8H → 8.5H → …）；若當日已有換休，則「＋」會先還原換休。',
@@ -131,7 +131,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
       '點擊卡片底部「＋」逐次登錄加班；再點「−」可取消加班或改為支用換休。',
       '或直接點擊「8H」等時數文字，輸入目標總工時後確認。',
       '注意單日加班有上限，且換休不可超過本月累積的加班庫存。',
-      '調整後請再到班表檢核表確認「延長工時」與相關診斷是否仍合規。',
+      '調整後請再到班表檢核表確認「延長工時」與相關提示是否仍未觸發。',
     ],
     imageSrc: '/guide/05-overtime-comp.png',
     imageAlt: '班別卡片底部加減鈕用於登錄加班或換休',
@@ -140,19 +140,19 @@ const GUIDE_SECTIONS: GuideSection[] = [
   {
     id: 'ot-warning',
     title: '警告加班時數',
-    icon: <Gauge className="w-4 h-4" />,
+    icon: <Gauge className="w-5 h-5" />,
     paragraphs: [
       '當累積延長工時接近或超過法定／參考上限時，班表檢核表會以紅色進度條與警示文字提醒。',
-      '常見警示包含「每月延長工時超限」（例如累積超過 46H）以及「週期延長工時偏高」；診斷明細會標示法條（如勞基法第 32 條）與對應日期區間。',
-      '可點診斷項目的「對應日期」連結，快速回到班表定位需要調整加班或改安排換休的日子。',
+      '常見警示包含「每月延長工時超限」（例如累積超過 46H）以及「週期延長工時偏高」；規則檢核明細會標示法條（如勞基法第 32 條）與對應日期區間。',
+      '可點明細項目的「對應日期」連結，快速回到班表定位需要調整加班或改安排換休的日子。',
     ],
     steps: [
       '開啟班表檢核表，查看「延長工時」卡片是否變紅或超出上限。',
-      '閱讀下方診斷明細中的超限說明與對應日期。',
+      '閱讀下方規則檢核明細中的超限說明與對應日期。',
       '回到班表以「−」取消過量加班，或在其他日支用換休降低壓力，再確認警示是否解除。',
     ],
     imageSrc: '/guide/06-overtime-warning.png',
-    imageAlt: '延長工時超限時的班表檢核與診斷警示',
+    imageAlt: '延長工時超限時的班表檢核與規則提示',
     imageCaption: '範例：延長工時 64H 超過 46H 上限時的紅色警告',
   },
 ];
@@ -185,12 +185,12 @@ const GuideImageThumb: React.FC<{
         className="w-full h-auto object-contain transition-opacity duration-200 group-hover:opacity-95"
         loading="lazy"
       />
-      <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-black/65 px-2 py-1 text-[10px] font-bold text-white">
-        <ZoomIn className="w-3 h-3" />
+      <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-black/65 px-2.5 py-1 text-xs font-bold text-white">
+        <ZoomIn className="w-3.5 h-3.5" />
         點擊看清楚
       </span>
     </button>
-    <figcaption className="text-[11px] text-[#8A8A70]">{caption}</figcaption>
+    <figcaption className="text-sm text-[#8A8A70]">{caption}</figcaption>
   </figure>
 );
 
@@ -240,14 +240,16 @@ const ImageLightbox: React.FC<{
           alt={alt}
           className="max-w-full max-h-[88vh] object-contain rounded-lg shadow-2xl"
         />
-        <p className="mt-3 text-xs text-white/80 text-center">{alt} · 放大以便看清楚細節 · 點擊背景或按 Esc 關閉</p>
+        <p className="mt-3 text-sm text-white/80 text-center">
+          {alt} · 放大以便看清楚細節 · 點擊背景或按 Esc 關閉
+        </p>
       </div>
     </div>
   );
 };
 
 /**
- * 排班模擬系統使用說明指南：以操作主軸重寫，並嵌入可點開放大的截圖。
+ * 排班操作使用說明：僅含點選、拖曳、釘選、檢核與加班等操作章節。
  *
  * @param props.isOpen 是否顯示
  * @param props.onClose 關閉回呼
@@ -269,15 +271,14 @@ export const UserGuideModal: React.FC<UserGuideModalProps> = ({ isOpen, onClose 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white border border-[#E9E7D4] rounded-2xl max-w-4xl w-full p-5 sm:p-6 shadow-xl text-[#2D2D2D] space-y-4 my-6 animate-in zoom-in-95 duration-200">
-        {/* 標題列 */}
         <div className="flex items-center justify-between border-b border-[#E9E7D4] pb-4">
           <div className="flex items-center space-x-3">
             <div className="p-2.5 bg-[#5A5A40]/10 text-[#5A5A40] rounded-xl border border-[#5A5A40]/20">
-              <BookOpen className="w-5 h-5" />
+              <BookOpen className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-[#2D2D2D] font-serif">排班模擬系統 — 使用說明指南</h2>
-              <p className="text-xs text-[#8A8A70]">點選換班、拖曳交換、釘選鎖定、非法排班與加班換休</p>
+              <h2 className="text-xl font-bold text-[#2D2D2D] font-serif">排班模擬系統 — 使用說明</h2>
+              <p className="text-sm text-[#8A8A70]">點選換班、拖曳交換、釘選鎖定、規則檢核與加班換休</p>
             </div>
           </div>
           <button
@@ -286,13 +287,12 @@ export const UserGuideModal: React.FC<UserGuideModalProps> = ({ isOpen, onClose 
             className="p-1.5 rounded-lg text-[#8A8A70] hover:text-[#2D2D2D] hover:bg-[#E9E7D4] transition-colors cursor-pointer"
             aria-label="關閉使用說明"
           >
-            <X className="w-5 h-5" />
+            <X className="w-6 h-6" />
           </button>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 min-h-112">
-          {/* 章節導覽 */}
-          <nav className="sm:w-48 shrink-0 flex sm:flex-col gap-1 overflow-x-auto sm:overflow-visible pb-1 sm:pb-0">
+          <nav className="sm:w-52 shrink-0 flex sm:flex-col gap-1 overflow-x-auto sm:overflow-visible pb-1 sm:pb-0">
             {GUIDE_SECTIONS.map((section, index) => {
               const isActive = section.id === activeSection.id;
               return (
@@ -300,7 +300,7 @@ export const UserGuideModal: React.FC<UserGuideModalProps> = ({ isOpen, onClose 
                   key={section.id}
                   type="button"
                   onClick={() => setActiveSectionId(section.id)}
-                  className={`shrink-0 px-3 py-2.5 rounded-xl text-left text-xs font-bold transition-colors cursor-pointer flex items-center gap-2 ${
+                  className={`shrink-0 px-3 py-2.5 rounded-xl text-left text-sm font-bold transition-colors cursor-pointer flex items-center gap-2 ${
                     isActive
                       ? 'bg-[#5A5A40] text-white'
                       : 'bg-[#F8F7EB] text-[#5A5A40] hover:bg-[#E9E7D4]'
@@ -317,10 +317,9 @@ export const UserGuideModal: React.FC<UserGuideModalProps> = ({ isOpen, onClose 
             })}
           </nav>
 
-          {/* 章節內容 */}
-          <div className="flex-1 max-h-128 overflow-y-auto pr-1 space-y-4 text-xs leading-relaxed">
+          <div className="flex-1 max-h-128 overflow-y-auto pr-1 space-y-4 text-sm leading-relaxed">
             <div className="rounded-xl border border-[#E9E7D4] bg-[#F8F7EB] px-3 py-2 flex items-start gap-2 text-[#5A5A40]">
-              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
               <p>
                 預覽圖會顯示完整畫面；若要看清細節，可
                 <strong className="font-bold">點擊放大</strong>
@@ -329,7 +328,7 @@ export const UserGuideModal: React.FC<UserGuideModalProps> = ({ isOpen, onClose 
             </div>
 
             <section className="space-y-3">
-              <h3 className="text-sm font-bold text-[#5A5A40] flex items-center gap-2">
+              <h3 className="text-base font-bold text-[#5A5A40] flex items-center gap-2">
                 <span className="inline-flex text-[#5A5A40]">{activeSection.icon}</span>
                 {activeSection.title}
               </h3>
@@ -351,7 +350,10 @@ export const UserGuideModal: React.FC<UserGuideModalProps> = ({ isOpen, onClose 
                 alt={activeSection.imageAlt}
                 caption={activeSection.imageCaption}
                 onExpand={() =>
-                  setLightbox({ src: activeSection.imageSrc, alt: activeSection.imageAlt })
+                  setLightbox({
+                    src: activeSection.imageSrc,
+                    alt: activeSection.imageAlt,
+                  })
                 }
               />
             </section>
@@ -362,7 +364,7 @@ export const UserGuideModal: React.FC<UserGuideModalProps> = ({ isOpen, onClose 
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer"
+            className="px-5 py-2.5 bg-[#5A5A40] hover:bg-[#484833] text-white font-bold text-sm rounded-xl shadow-sm transition-colors cursor-pointer"
           >
             瞭解並關閉
           </button>

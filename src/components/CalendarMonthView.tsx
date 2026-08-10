@@ -604,7 +604,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                           {isIllegalTarget && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black/10 z-30 rounded-lg sm:rounded-xl pointer-events-none">
                               <span className="text-[8px] sm:text-[10px] font-bold text-red-600 bg-white/90 px-1 py-0.5 rounded shadow">
-                                不合規
+                                規則限制
                               </span>
                             </div>
                           )}

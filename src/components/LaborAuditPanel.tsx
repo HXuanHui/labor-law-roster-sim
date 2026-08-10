@@ -88,8 +88,8 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
             {(hasErrors || hasWarnings) && (
               <p className="text-xs text-[#8A8A70]">
                 {hasErrors
-                  ? `存在 ${violations.filter((v) => v.severity === 'error').length} 項嚴重勞檢違規（將導致平移卡位保護）`
-                  : `存在 ${violations.filter((v) => v.severity === 'warning').length} 項勞基法提醒提示`}
+                  ? `模擬檢核發現 ${violations.filter((v) => v.severity === 'error').length} 項需優先留意（將啟用平移卡位保護）`
+                  : `模擬檢核發現 ${violations.filter((v) => v.severity === 'warning').length} 項規則提醒`}
               </p>
             )}
           </div>
@@ -97,17 +97,25 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
 
         {/* Quick Summary Pill & Legal Rules Trigger */}
         <div className="flex items-center space-x-2">
-          {hasErrors ? (
+          {violations.length > 0 ? (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setIsLegalModalOpen(true);
               }}
-              className="px-3 py-1.5 rounded-full text-xs font-semibold bg-[#D17A60]/15 text-[#D17A60] border border-[#D17A60]/30 flex items-center gap-1.5 hover:bg-[#D17A60]/25 transition-colors cursor-pointer"
-              title="點擊查看此工時制度之勞基法說明"
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                hasErrors
+                  ? 'bg-[#D17A60]/15 text-[#D17A60] border border-[#D17A60]/30 hover:bg-[#D17A60]/25'
+                  : 'bg-[#D9A05B]/15 text-[#D9A05B] border border-[#D9A05B]/30 hover:bg-[#D9A05B]/25'
+              }`}
+              title="點擊查看此工時制度之規則說明（模擬提示，非正式結論）"
             >
-              <AlertCircle className="w-3.5 h-3.5 text-[#D17A60]" />
-              <span>勞檢未通過 (點擊查看法規說明)</span>
+              {hasErrors ? (
+                <AlertCircle className="w-3.5 h-3.5 text-[#D17A60]" />
+              ) : (
+                <AlertTriangle className="w-3.5 h-3.5 text-[#D9A05B]" />
+              )}
+              <span>模擬檢核：發現 {violations.length} 項需留意（點擊查看法規說明）</span>
             </button>
           ) : (
             <button
@@ -116,10 +124,10 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
                 setIsLegalModalOpen(true);
               }}
               className="px-3 py-1.5 rounded-full text-xs font-semibold bg-[#4A7C59]/15 text-[#4A7C59] border border-[#4A7C59]/30 flex items-center gap-1.5 hover:bg-[#4A7C59]/25 transition-colors cursor-pointer shadow-sm"
-              title="點擊查看此工時制度之勞基法說明"
+              title="點擊查看此工時制度之規則說明（模擬提示，非正式結論）"
             >
               <ShieldCheck className="w-3.5 h-3.5 text-[#4A7C59]" />
-              <span>完全合規 (點擊查看法規說明)</span>
+              <span>模擬檢核：無觸發項目（點擊查看法規說明）</span>
             </button>
           )}
 
@@ -249,7 +257,7 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
                 <span className="text-xs text-[#8A8A70]">天</span>
               </div>
               <div className="text-[10px] text-[#8A8A70] mt-1">
-                {mandatoryOffCount >= config.minMandatoryOffPerCycle ? '✅ 符合法定例假' : '❌ 天數不足'}
+                {mandatoryOffCount >= config.minMandatoryOffPerCycle ? '✅ 達最小例假天數' : '❌ 例假天數不足'}
                 {restDayCount < config.minRestDaysPerCycle
                   ? `／休息日 ${restDayCount}/${config.minRestDaysPerCycle}`
                   : ''}
@@ -261,7 +269,7 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
           {violations.length > 0 && (
             <div className="space-y-2 pt-2 border-t border-[#E9E7D4]">
               <div className="text-xs font-bold text-[#2D2D2D] flex items-center justify-between">
-                <span>勞動檢查診斷明細項目 ({violations.length})</span>
+                <span>規則檢核明細／風險提示 ({violations.length})</span>
                 <span className="text-[11px] text-[#8A8A70]">點擊項目可於日曆中標示日期</span>
               </div>
 
