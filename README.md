@@ -2,6 +2,8 @@
 
 離線可用的台灣勞基法排班模擬工具。支援一般工時與 2／4／8 週變形工時即時檢核，並提供班別拖拉、釘選鎖定、加班換休與國定假日補假等操作，協助排班人員在出表前先發現不合規風險。
 
+**線上示範**：[https://labor-law-roster-sim.huangxh8531.workers.dev/](https://labor-law-roster-sim.huangxh8531.workers.dev/)
+
 > **免責聲明**：本工具僅供排班規劃與教育模擬參考，非正式法律意見或勞動檢查結論。實際適用請依現行法令、主管機關函釋及單位人事規範為準。
 
 ---
@@ -176,7 +178,11 @@ labor-law-roster-sim/
 npm run build
 ```
 
-產出位於 `dist/`，可部署至任何靜態網站託管（GitHub Pages、Nginx、IIS 靜態目錄等）。此應用以前端為主，無強制後端依賴。
+產出位於 `dist/`，可部署至任何靜態網站託管（GitHub Pages、Cloudflare Workers／Pages、Nginx、IIS 靜態目錄等）。此應用以前端為主，無強制後端依賴。
+
+目前線上環境託管於 Cloudflare Workers：
+
+[https://labor-law-roster-sim.huangxh8531.workers.dev/](https://labor-law-roster-sim.huangxh8531.workers.dev/)
 
 ---
 
