@@ -173,11 +173,11 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
               <div>
                 <h3 className="text-base font-bold text-[#2D2D2D] flex items-center gap-2">
                   <span>匯出排班行事曆</span>
-                  <span className="text-xs bg-[#5A5A40]/10 text-[#5A5A40] px-2 py-0.5 rounded-lg border border-[#5A5A40]/20 font-mono">
+                  <span className="text-sm bg-[#5A5A40]/10 text-[#5A5A40] px-2 py-0.5 rounded-lg border border-[#5A5A40]/20 font-mono">
                     列印/PDF格式
                   </span>
                 </h3>
-                <p className="text-xs text-[#8A8A70]">可切換年曆或月曆檢視，自動帶入同仁班型與自訂班別配色</p>
+                <p className="text-sm text-[#8A8A70]">可切換年曆或月曆檢視，自動帶入同仁班型與自訂班別配色</p>
               </div>
             </div>
 
@@ -193,12 +193,12 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2 border-t border-[#E9E7D4]">
             {/* 1. Scope (Year vs Month) */}
             <div>
-              <label className="block text-[11px] font-bold text-[#8A8A70] mb-1">匯出模式</label>
+              <label className="block text-sm font-bold text-[#8A8A70] mb-1">匯出模式</label>
               <div className="flex bg-[#E9E7D4] p-1 rounded-xl border border-[#D9D7C2]">
                 <button
                   type="button"
                   onClick={() => setExportScope('year')}
-                  className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex-1 py-1 rounded-lg text-sm font-bold transition-all cursor-pointer ${
                     exportScope === 'year'
                       ? 'bg-[#5A5A40] text-white shadow-sm'
                       : 'text-[#5A5A40] hover:bg-[#D9D7C2]/60'
@@ -209,7 +209,7 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setExportScope('month')}
-                  className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex-1 py-1 rounded-lg text-sm font-bold transition-all cursor-pointer ${
                     exportScope === 'month'
                       ? 'bg-[#5A5A40] text-white shadow-sm'
                       : 'text-[#5A5A40] hover:bg-[#D9D7C2]/60'
@@ -222,11 +222,11 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
 
             {/* 2. Target Employee */}
             <div>
-              <label className="block text-[11px] font-bold text-[#8A8A70] mb-1">檢視人員</label>
+              <label className="block text-sm font-bold text-[#8A8A70] mb-1">檢視人員</label>
               <select
                 value={targetEmployeeId}
                 onChange={(e) => setTargetEmployeeId(e.target.value)}
-                className="w-full bg-white border border-[#D9D7C2] text-[#2D2D2D] font-bold text-xs rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-[#5A5A40] cursor-pointer"
+                className="w-full bg-white border border-[#D9D7C2] text-[#2D2D2D] font-bold text-sm rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-[#5A5A40] cursor-pointer"
               >
                 <option value="all">全體同仁 ({employees.length}人)</option>
                 {employees.map((emp) => (
@@ -239,11 +239,11 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
 
             {/* 3. Year */}
             <div>
-              <label className="block text-[11px] font-bold text-[#8A8A70] mb-1">年份</label>
+              <label className="block text-sm font-bold text-[#8A8A70] mb-1">年份</label>
               <select
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="w-full bg-white border border-[#D9D7C2] text-[#2D2D2D] font-bold text-xs rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-[#5A5A40] cursor-pointer"
+                className="w-full bg-white border border-[#D9D7C2] text-[#2D2D2D] font-bold text-sm rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-[#5A5A40] cursor-pointer"
               >
                 {yearOptions.map((y) => (
                   <option key={y} value={y}>
@@ -255,12 +255,12 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
 
             {/* 4. Month (if Scope is Month) */}
             <div>
-              <label className="block text-[11px] font-bold text-[#8A8A70] mb-1">月份</label>
+              <label className="block text-sm font-bold text-[#8A8A70] mb-1">月份</label>
               <select
                 disabled={exportScope === 'year'}
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                className="w-full bg-white border border-[#D9D7C2] text-[#2D2D2D] font-bold text-xs rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-[#5A5A40] disabled:opacity-50 cursor-pointer"
+                className="w-full bg-white border border-[#D9D7C2] text-[#2D2D2D] font-bold text-sm rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-[#5A5A40] disabled:opacity-50 cursor-pointer"
               >
                 {monthNames.map((m, idx) => (
                   <option key={idx + 1} value={idx + 1}>
@@ -272,19 +272,19 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
 
             {/* 5. Print Button & Notes toggle */}
             <div className="flex items-end gap-2">
-              <label className="flex items-center space-x-1.5 text-xs text-[#2D2D2D] cursor-pointer select-none mb-2">
+              <label className="flex items-center space-x-1.5 text-sm text-[#2D2D2D] cursor-pointer select-none mb-2">
                 <input
                   type="checkbox"
                   checked={showNotes}
                   onChange={(e) => setShowNotes(e.target.checked)}
                   className="rounded border-[#D9D7C2] text-[#5A5A40] focus:ring-[#5A5A40]"
                 />
-                <span className="text-xs font-semibold">包含假解說明</span>
+                <span className="text-sm font-semibold">包含假解說明</span>
               </label>
 
               <button
                 onClick={handlePrint}
-                className="flex-1 py-1.5 px-3 bg-[#5A5A40] hover:bg-[#484833] text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 py-1.5 px-3 bg-[#5A5A40] hover:bg-[#484833] text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Printer className="w-4 h-4" />
                 <span>列印 / 另存PDF</span>
@@ -313,7 +313,7 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                   <h1 className="export-print-title text-xl sm:text-2xl font-black font-serif text-[#2D2D2D] tracking-wide">
                     {selectedYear} 年 {exportScope === 'month' ? `${selectedMonth}月 ` : ''}排班行事曆
                   </h1>
-                  <p className="export-print-meta text-xs text-[#5A5A40] font-semibold mt-0.5">
+                  <p className="export-print-meta text-sm text-[#5A5A40] font-semibold mt-0.5">
                     姓名：<span className="font-bold text-[#2D2D2D] mr-3">{emp.name}</span>
                     職稱：<span className="font-bold text-[#2D2D2D] mr-3">{emp.role}</span>
                     部門：<span className="font-bold text-[#2D2D2D] mr-3">{emp.department || '醫療/行政'}</span>
@@ -321,33 +321,33 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                   </p>
                 </div>
 
-                <div className="export-print-meta text-right text-[11px] text-[#8A8A70]">
+                <div className="export-print-meta text-right text-sm text-[#8A8A70]">
                   <div>製表日期：{format(new Date(), 'yyyy/MM/dd')}</div>
-                  <div className="font-mono text-[10px]">自訂班別色塊版</div>
+                  <div className="font-mono text-xs">自訂班別色塊版</div>
                 </div>
               </div>
 
               {/* Reference Notes / Legend Box (matching image style) */}
               {showNotes && (
-                <div className="export-print-notes border border-[#2D2D2D] p-3 rounded-lg text-xs leading-relaxed space-y-1.5 bg-white text-[#2D2D2D]">
+                <div className="export-print-notes border border-[#2D2D2D] p-3 rounded-lg text-sm leading-relaxed space-y-1.5 bg-white text-[#2D2D2D]">
                   <div className="font-bold text-[#2D2D2D] flex items-center justify-between border-b border-gray-200 pb-1">
                     <span>1. 行政院休假放假與排班說明：</span>
-                    <span className="text-[10px] text-[#8A8A70] font-normal">依《勞動基準法》與主管機關辦公日曆表</span>
+                    <span className="text-xs text-[#8A8A70] font-normal">依《勞動基準法》與主管機關辦公日曆表</span>
                   </div>
-                  <p className="text-[11px]">
+                  <p className="text-sm">
                     (1) 原國定假日之日期休假，計 10 天：01/01元旦、02/16除夕、02/17初一、02/18初二、02/19初三、02/28和平紀念日、04/04兒童節、04/05清明節、05/01勞動節、06/19端午節、09/25中秋節、10/10國慶日等。
                   </p>
-                  <p className="text-[11px]">
+                  <p className="text-sm">
                     (2) 國定假日逢週六、日之挪移假日與彈性調整休假，依法挪移至工作日補休；休息日與例假日遵照二/四/八週變形工時週期約定調移。
                   </p>
                   
                   {/* Custom Shift Color Legend */}
-                  <div className="pt-1.5 border-t border-gray-200 flex flex-wrap items-center gap-2 text-[11px]">
+                  <div className="pt-1.5 border-t border-gray-200 flex flex-wrap items-center gap-2 text-sm">
                     <span className="font-bold text-[#2D2D2D]">2. 班別代碼與自訂配色對照：</span>
                     {shiftTypes.map((st) => (
                       <span
                         key={st.id}
-                        className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border border-black/10 shadow-xs"
+                        className="inline-flex items-center px-2 py-0.5 rounded text-sm font-bold border border-black/10 shadow-xs"
                         style={{
                           backgroundColor: st.color,
                           color: getContrastingTextColor(st.color),
@@ -375,14 +375,14 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                         className="export-print-year-month border-2 border-[#2D2D2D] rounded-xl bg-white overflow-hidden shadow-xs flex flex-col justify-between"
                       >
                         {/* Month Header */}
-                        <div className="export-print-year-month-title bg-[#5A5A40] text-white text-center py-1 font-bold text-xs font-serif border-b border-[#2D2D2D]">
+                        <div className="export-print-year-month-title bg-[#5A5A40] text-white text-center py-1 font-bold text-sm font-serif border-b border-[#2D2D2D]">
                           {selectedYear}年 {monthNum}月
                         </div>
 
                         {/* Calendar Grid */}
                         <div className="export-print-year-month-body p-1 flex-1 flex flex-col min-h-0">
                           {/* Weekdays Header */}
-                          <div className="export-print-year-weekdays grid grid-cols-7 text-center font-bold text-[10px] text-[#2D2D2D] border-b border-gray-300 pb-0.5 mb-1">
+                          <div className="export-print-year-weekdays grid grid-cols-7 text-center font-bold text-xs text-[#2D2D2D] border-b border-gray-300 pb-0.5 mb-1">
                             {weekDayHeaders.map((dh, i) => (
                               <div
                                 key={i}
@@ -394,7 +394,7 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                           </div>
 
                           {/* Day Cells */}
-                          <div className="export-print-year-days grid grid-cols-7 gap-0.5 text-center text-[10px] flex-1 min-h-0">
+                          <div className="export-print-year-days grid grid-cols-7 gap-0.5 text-center text-xs flex-1 min-h-0">
                             {cells.map((cell, cIdx) => {
                               if (!cell.dayNumber || !cell.dateStr) {
                                 return <div key={cIdx} className="export-print-year-day h-6 bg-gray-50/50 rounded-xs" />;
@@ -419,9 +419,9 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                                   style={bgStyle}
                                   title={`${cell.dateStr} - ${shiftType?.name || '休'}`}
                                 >
-                                  <span className="export-print-year-day-num leading-none text-[10px]">{cell.dayNumber}</span>
+                                  <span className="export-print-year-day-num leading-none text-xs">{cell.dayNumber}</span>
                                   {shiftType && (
-                                    <span className="export-print-year-day-code text-[8px] opacity-90 leading-none mt-0.5 scale-90">
+                                    <span className="export-print-year-day-code text-xs opacity-90 leading-none mt-0.5 scale-90">
                                       {shiftType.code}
                                     </span>
                                   )}
@@ -432,7 +432,7 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                         </div>
 
                         {/* Month Summary Footer */}
-                        <div className="export-print-year-footer border-t border-[#2D2D2D] bg-[#F8F7EB] px-2 py-1 flex items-center justify-between text-[10px] font-bold text-[#2D2D2D]">
+                        <div className="export-print-year-footer border-t border-[#2D2D2D] bg-[#F8F7EB] px-2 py-1 flex items-center justify-between text-xs font-bold text-[#2D2D2D]">
                           <span>休假日：<strong className="text-[#D17A60]">{stats.offDays}</strong> 天</span>
                           <span>工作：<strong className="text-[#5A5A40]">{stats.workDays}</strong> 天 ({stats.workHours}H)</span>
                         </div>
@@ -448,13 +448,13 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                   {/* Single Month Header */}
                   <div className="export-print-month-title bg-[#5A5A40] text-white p-3 font-bold text-base font-serif flex items-center justify-between">
                     <span>{selectedYear}年 {selectedMonth}月 排班月曆表</span>
-                    <span className="export-print-month-stats text-xs font-mono font-normal opacity-90">
+                    <span className="export-print-month-stats text-sm font-mono font-normal opacity-90">
                       當月統計：休假日 {getMonthStats(emp, selectedYear, selectedMonth - 1).offDays} 天 | 工作日 {getMonthStats(emp, selectedYear, selectedMonth - 1).workDays} 天 ({getMonthStats(emp, selectedYear, selectedMonth - 1).workHours} 小時)
                     </span>
                   </div>
 
                   {/* Large Grid Header */}
-                  <div className="export-print-month-weekdays grid grid-cols-7 text-center font-bold text-xs bg-[#F8F7EB] border-b-2 border-[#2D2D2D] py-2">
+                  <div className="export-print-month-weekdays grid grid-cols-7 text-center font-bold text-sm bg-[#F8F7EB] border-b-2 border-[#2D2D2D] py-2">
                     {weekDayHeaders.map((dh, i) => (
                       <div
                         key={i}
@@ -482,7 +482,7 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                           <div className="flex items-center justify-between gap-1">
                             <span className="export-print-month-day-num font-bold font-mono text-sm text-[#2D2D2D]">{cell.dayNumber}</span>
                             {isHoliday && (
-                              <span className="export-print-month-holiday text-[9px] bg-[#D17A60] text-white px-1 rounded font-bold truncate">
+                              <span className="export-print-month-holiday text-sm bg-[#D17A60] text-white px-1 rounded font-bold truncate">
                                 {holidayObj?.name || '國定假'}
                               </span>
                             )}
@@ -490,22 +490,22 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
 
                           {shiftType ? (
                             <div
-                              className="export-print-month-shift p-1 rounded-lg text-xs font-bold text-center mt-1 border border-black/10 shadow-xs"
+                              className="export-print-month-shift p-1 rounded-lg text-sm font-bold text-center mt-1 border border-black/10 shadow-xs"
                               style={{
                                 backgroundColor: shiftType.color,
                                 color: getContrastingTextColor(shiftType.color),
                               }}
                             >
                               <div className="flex items-center justify-between px-0.5 gap-1">
-                                <span className="text-[10px]">{shiftType.code}</span>
+                                <span className="text-xs">{shiftType.code}</span>
                                 <span className="truncate">{shiftType.name}</span>
                               </div>
-                              <div className="text-[9px] opacity-80 text-right mt-0.5">
+                              <div className="text-sm opacity-80 text-right mt-0.5">
                                 {shiftType.workHours > 0 ? `${shiftType.workHours}H` : '例休'}
                               </div>
                             </div>
                           ) : (
-                            <div className="text-xs text-gray-400 text-center py-2">-</div>
+                            <div className="text-sm text-gray-400 text-center py-2">-</div>
                           )}
                         </div>
                       );

@@ -79,14 +79,14 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
             )}
           </div>
           <div>
-            <h2 className="text-sm font-bold text-[#2D2D2D] flex items-center gap-2">
+            <h2 className="text-base font-bold text-[#2D2D2D] flex items-center gap-2">
               <span>班表檢核表</span>
-              <span className="text-[11px] text-[#8A8A70] font-normal">
+              <span className="text-sm text-[#8A8A70] font-normal">
                 ({isCollapsed ? '點擊展開' : '點擊縮小'})
               </span>
             </h2>
             {(hasErrors || hasWarnings) && (
-              <p className="text-xs text-[#8A8A70]">
+              <p className="text-sm text-[#8A8A70]">
                 {hasErrors
                   ? `模擬檢核發現 ${violations.filter((v) => v.severity === 'error').length} 項需優先留意（將啟用平移卡位保護）`
                   : `模擬檢核發現 ${violations.filter((v) => v.severity === 'warning').length} 項規則提醒`}
@@ -103,7 +103,7 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
                 e.stopPropagation();
                 setIsLegalModalOpen(true);
               }}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-full text-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                 hasErrors
                   ? 'bg-[#D17A60]/15 text-[#D17A60] border border-[#D17A60]/30 hover:bg-[#D17A60]/25'
                   : 'bg-[#D9A05B]/15 text-[#D9A05B] border border-[#D9A05B]/30 hover:bg-[#D9A05B]/25'
@@ -123,7 +123,7 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
                 e.stopPropagation();
                 setIsLegalModalOpen(true);
               }}
-              className="px-3 py-1.5 rounded-full text-xs font-semibold bg-[#4A7C59]/15 text-[#4A7C59] border border-[#4A7C59]/30 flex items-center gap-1.5 hover:bg-[#4A7C59]/25 transition-colors cursor-pointer shadow-sm"
+              className="px-3 py-1.5 rounded-full text-sm font-semibold bg-[#4A7C59]/15 text-[#4A7C59] border border-[#4A7C59]/30 flex items-center gap-1.5 hover:bg-[#4A7C59]/25 transition-colors cursor-pointer shadow-sm"
               title="點擊查看此工時制度之規則說明（模擬提示，非正式結論）"
             >
               <ShieldCheck className="w-3.5 h-3.5 text-[#4A7C59]" />
@@ -149,17 +149,17 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
                   : 'bg-[#F8F7EB] border-[#E9E7D4] text-[#2D2D2D]'
               }`}
             >
-              <div className="flex items-center justify-between text-xs text-[#8A8A70] mb-1">
+              <div className="flex items-center justify-between text-sm text-[#8A8A70] mb-1">
                 <span className="flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5 text-[#5A5A40]" /> 正常工時
                 </span>
-                <span className="text-[10px] font-mono">最多 {config.maxNormalHoursPerCycle}H</span>
+                <span className="text-xs font-mono">最多 {config.maxNormalHoursPerCycle}H</span>
               </div>
               <div className="flex items-baseline space-x-1">
                 <span className="text-xl font-black font-mono text-[#5A5A40]">{totalWorkHours}</span>
-                <span className="text-xs text-[#8A8A70]">小時</span>
+                <span className="text-sm text-[#8A8A70]">小時</span>
               </div>
-              <div className="text-[10px] text-[#8A8A70] mt-1">
+              <div className="text-xs text-[#8A8A70] mt-1">
                 {config.name}／{config.cycleDays} 天週期
               </div>
               <div className="w-full bg-[#E9E7D4] h-1.5 rounded-full mt-2 overflow-hidden">
@@ -182,17 +182,17 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
                   : 'bg-[#F8F7EB] border-[#E9E7D4] text-[#2D2D2D]'
               }`}
             >
-              <div className="flex items-center justify-between text-xs text-[#8A8A70] mb-1">
+              <div className="flex items-center justify-between text-sm text-[#8A8A70] mb-1">
                 <span className="flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5 text-[#D9A05B]" /> 延長工時
                 </span>
-                <span className="text-[10px] font-mono">最多 {MAX_MONTHLY_OVERTIME_HOURS}H</span>
+                <span className="text-xs font-mono">最多 {MAX_MONTHLY_OVERTIME_HOURS}H</span>
               </div>
               <div className="flex items-baseline space-x-1">
                 <span className="text-xl font-black font-mono text-[#D9A05B]">{totalOvertimeHours}</span>
-                <span className="text-xs text-[#8A8A70]">小時</span>
+                <span className="text-sm text-[#8A8A70]">小時</span>
               </div>
-              <div className="text-[10px] text-[#8A8A70] mt-1">本月累計（勞基法第32條）</div>
+              <div className="text-xs text-[#8A8A70] mt-1">本月累計（勞基法第32條）</div>
               <div className="w-full bg-[#E9E7D4] h-1.5 rounded-full mt-2 overflow-hidden">
                 <div
                   className={`h-full transition-all duration-300 ${
@@ -216,15 +216,15 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
                   : 'bg-[#F8F7EB] border-[#E9E7D4] text-[#2D2D2D]'
               }`}
             >
-              <div className="flex items-center justify-between text-xs text-[#8A8A70] mb-1">
+              <div className="flex items-center justify-between text-sm text-[#8A8A70] mb-1">
                 <span className="flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5 text-[#D17A60]" /> 最長連續工作天數
                 </span>
-                <span className="text-[10px] font-mono">上限 {config.maxConsecutiveWorkDays}天</span>
+                <span className="text-xs font-mono">上限 {config.maxConsecutiveWorkDays}天</span>
               </div>
               <div className="flex items-baseline space-x-1">
                 <span className="text-xl font-black font-mono text-[#5A5A40]">{maxConsecutiveDays}</span>
-                <span className="text-xs text-[#8A8A70]">連班</span>
+                <span className="text-sm text-[#8A8A70]">連班</span>
               </div>
               <div className="w-full bg-[#E9E7D4] h-1.5 rounded-full mt-2 overflow-hidden">
                 <div
@@ -246,17 +246,17 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
                   : 'bg-[#F8F7EB] border-[#E9E7D4] text-[#2D2D2D]'
               }`}
             >
-              <div className="flex items-center justify-between text-xs text-[#8A8A70] mb-1">
+              <div className="flex items-center justify-between text-sm text-[#8A8A70] mb-1">
                 <span className="flex items-center gap-1">
                   <Scale className="w-3.5 h-3.5 text-[#D17A60]" /> 例假日數 (例)
                 </span>
-                <span className="text-[10px] font-mono">最少 {config.minMandatoryOffPerCycle}天</span>
+                <span className="text-xs font-mono">最少 {config.minMandatoryOffPerCycle}天</span>
               </div>
               <div className="flex items-baseline space-x-1">
                 <span className="text-xl font-black font-mono text-[#D17A60]">{mandatoryOffCount}</span>
-                <span className="text-xs text-[#8A8A70]">天</span>
+                <span className="text-sm text-[#8A8A70]">天</span>
               </div>
-              <div className="text-[10px] text-[#8A8A70] mt-1">
+              <div className="text-xs text-[#8A8A70] mt-1">
                 {mandatoryOffCount >= config.minMandatoryOffPerCycle ? '✅ 達最小例假天數' : '❌ 例假天數不足'}
                 {restDayCount < config.minRestDaysPerCycle
                   ? `／休息日 ${restDayCount}/${config.minRestDaysPerCycle}`
@@ -268,9 +268,9 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
           {/* Itemized Violation List */}
           {violations.length > 0 && (
             <div className="space-y-2 pt-2 border-t border-[#E9E7D4]">
-              <div className="text-xs font-bold text-[#2D2D2D] flex items-center justify-between">
+              <div className="text-sm font-bold text-[#2D2D2D] flex items-center justify-between">
                 <span>規則檢核明細／風險提示 ({violations.length})</span>
-                <span className="text-[11px] text-[#8A8A70]">點擊項目可於日曆中標示日期</span>
+                <span className="text-sm text-[#8A8A70]">點擊項目可於日曆中標示日期</span>
               </div>
 
               <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
@@ -278,7 +278,7 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
                   <div
                     key={idx}
                     onClick={() => v.dates && onHighlightDates && onHighlightDates(v.dates)}
-                    className={`p-3 rounded-xl border text-xs cursor-pointer transition-all hover:scale-[1.01] ${
+                    className={`p-3 rounded-xl border text-sm cursor-pointer transition-all hover:scale-[1.01] ${
                       v.severity === 'error'
                         ? 'bg-[#D17A60]/10 border-[#D17A60]/30 hover:bg-[#D17A60]/15 text-[#2D2D2D]'
                         : 'bg-[#D9A05B]/10 border-[#D9A05B]/30 hover:bg-[#D9A05B]/15 text-[#2D2D2D]'
@@ -287,7 +287,7 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
                     <div className="flex items-center justify-between font-bold mb-1">
                       <div className="flex items-center space-x-2">
                         <span
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
+                          className={`px-1.5 py-0.5 rounded text-xs font-mono ${
                             v.severity === 'error' ? 'bg-[#D17A60] text-white' : 'bg-[#D9A05B] text-white'
                           }`}
                         >
@@ -296,12 +296,12 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
                         <span>{v.title}</span>
                       </div>
                       {v.dates && v.dates.length > 0 && (
-                        <span className="text-[10px] text-[#5A5A40] underline">
+                        <span className="text-xs text-[#5A5A40] underline">
                           對應日期 ({v.dates.length}天)
                         </span>
                       )}
                     </div>
-                    <p className="text-[#2D2D2D] leading-relaxed text-[11px]">{v.message}</p>
+                    <p className="text-[#2D2D2D] leading-relaxed text-sm">{v.message}</p>
                   </div>
                 ))}
               </div>
@@ -310,7 +310,7 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
 
           {/* National Holiday Work Notification */}
           {nationalHolidayWorkCount > 0 && (
-            <div className="bg-[#5A5A40]/10 border border-[#5A5A40]/20 p-2.5 rounded-xl text-xs text-[#2D2D2D] flex items-center justify-between">
+            <div className="bg-[#5A5A40]/10 border border-[#5A5A40]/20 p-2.5 rounded-xl text-sm text-[#2D2D2D] flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Info className="w-4 h-4 text-[#5A5A40] flex-shrink-0" />
                 <span>

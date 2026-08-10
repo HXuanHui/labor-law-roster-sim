@@ -85,7 +85,7 @@ export const MakeupSourcePickerModal: React.FC<MakeupSourcePickerModalProps> = (
             </div>
             <div className="min-w-0">
               <h3 className="text-sm font-bold text-[#2D2D2D] font-serif">指定「調」對應的國定假日</h3>
-              <p className="text-[11px] text-[#8A8A70] mt-0.5">
+              <p className="text-sm text-[#8A8A70] mt-0.5">
                 目標補假日{' '}
                 <span className="font-mono font-bold text-[#D17A60]">{targetDate}</span>
                 （{formatTaiwanDate(targetDate)}）— 請選擇畫面上哪個「國」班日被週末／例休排擠
@@ -104,7 +104,7 @@ export const MakeupSourcePickerModal: React.FC<MakeupSourcePickerModalProps> = (
 
         <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
           {candidates.length === 0 ? (
-            <p className="text-xs text-[#D17A60] p-3 bg-[#D17A60]/10 rounded-xl border border-[#D17A60]/20">
+            <p className="text-sm text-[#D17A60] p-3 bg-[#D17A60]/10 rounded-xl border border-[#D17A60]/20">
               畫面上目前沒有「國」班可供對應。請先將原國定假日那天設為「國」，再設定「調」。
             </p>
           ) : (
@@ -115,7 +115,7 @@ export const MakeupSourcePickerModal: React.FC<MakeupSourcePickerModalProps> = (
                   key={c.date}
                   type="button"
                   onClick={() => setSelectedSource(c.date)}
-                  className={`w-full text-left px-3 py-2.5 rounded-xl border text-xs transition-colors ${
+                  className={`w-full text-left px-3 py-2.5 rounded-xl border text-sm transition-colors ${
                     active
                       ? 'border-[#5A5A40] bg-[#5A5A40]/10 ring-1 ring-[#5A5A40]'
                       : 'border-[#E9E7D4] bg-[#F8F7EB] hover:border-[#5A5A40]/50'
@@ -123,7 +123,7 @@ export const MakeupSourcePickerModal: React.FC<MakeupSourcePickerModalProps> = (
                 >
                   <div className="font-mono font-bold text-[#D17A60]">{c.date}</div>
                   <div className="text-[#2D2D2D] font-semibold mt-0.5 truncate">{c.label}</div>
-                  <div className="text-[10px] text-[#8A8A70] mt-0.5">
+                  <div className="text-xs text-[#8A8A70] mt-0.5">
                     {getTaiwanWeekdayName(c.date)}
                     {c.substitutesFor
                       ? ` · 將計入${c.substitutesFor === 'rest' ? '休息日' : '例假日'}`
@@ -136,12 +136,12 @@ export const MakeupSourcePickerModal: React.FC<MakeupSourcePickerModalProps> = (
 
           {needsManualSub && (
             <div className="rounded-xl border border-[#E9E7D4] bg-white p-3 space-y-2">
-              <p className="text-[11px] font-semibold text-[#5A5A40]">此「國」班在平日，請指定「調」代替哪種假</p>
+              <p className="text-sm font-semibold text-[#5A5A40]">此「國」班在平日，請指定「調」代替哪種假</p>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setManualSub('rest')}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold border ${
+                  className={`flex-1 py-2 rounded-lg text-sm font-bold border ${
                     manualSub === 'rest'
                       ? 'bg-[#94A381] text-white border-[#94A381]'
                       : 'border-[#D9D7C2] text-[#5A5A40]'
@@ -152,7 +152,7 @@ export const MakeupSourcePickerModal: React.FC<MakeupSourcePickerModalProps> = (
                 <button
                   type="button"
                   onClick={() => setManualSub('mandatory')}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold border ${
+                  className={`flex-1 py-2 rounded-lg text-sm font-bold border ${
                     manualSub === 'mandatory'
                       ? 'bg-[#D17A60] text-white border-[#D17A60]'
                       : 'border-[#D9D7C2] text-[#5A5A40]'
@@ -169,7 +169,7 @@ export const MakeupSourcePickerModal: React.FC<MakeupSourcePickerModalProps> = (
           <button
             type="button"
             onClick={onCancel}
-            className="px-3 py-2 text-xs font-semibold rounded-xl border border-[#D9D7C2] text-[#5A5A40]"
+            className="px-3 py-2 text-sm font-semibold rounded-xl border border-[#D9D7C2] text-[#5A5A40]"
           >
             取消
           </button>
@@ -177,7 +177,7 @@ export const MakeupSourcePickerModal: React.FC<MakeupSourcePickerModalProps> = (
             type="button"
             onClick={handleConfirm}
             disabled={!selectedSource}
-            className="px-3 py-2 text-xs font-semibold rounded-xl bg-[#5A5A40] hover:bg-[#484833] disabled:opacity-40 text-white flex items-center gap-1"
+            className="px-3 py-2 text-sm font-semibold rounded-xl bg-[#5A5A40] hover:bg-[#484833] disabled:opacity-40 text-white flex items-center gap-1"
           >
             <Check className="w-3.5 h-3.5" />
             確認套用調

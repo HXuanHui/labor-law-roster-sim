@@ -313,7 +313,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
       <select
         value={currentYear}
         onChange={(e) => onChangeYearMonth(Number(e.target.value), currentMonth)}
-        className="bg-white border border-[#D9D7C2] text-[#2D2D2D] text-xs rounded-xl px-2.5 py-1.5 font-mono focus:ring-2 focus:ring-[#5A5A40] outline-none shadow-sm cursor-pointer"
+        className="bg-white border border-[#D9D7C2] text-[#2D2D2D] text-sm rounded-xl px-2.5 py-1.5 font-mono focus:ring-2 focus:ring-[#5A5A40] outline-none shadow-sm cursor-pointer"
       >
         {Array.from({ length: 11 }, (_, i) => 2020 + i).map((y) => (
           <option key={y} value={y}>
@@ -325,7 +325,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
       <select
         value={currentMonth}
         onChange={(e) => onChangeYearMonth(currentYear, Number(e.target.value))}
-        className="bg-white border border-[#D9D7C2] text-[#2D2D2D] text-xs rounded-xl px-2.5 py-1.5 font-mono focus:ring-2 focus:ring-[#5A5A40] outline-none shadow-sm cursor-pointer"
+        className="bg-white border border-[#D9D7C2] text-[#2D2D2D] text-sm rounded-xl px-2.5 py-1.5 font-mono focus:ring-2 focus:ring-[#5A5A40] outline-none shadow-sm cursor-pointer"
       >
         {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
           <option key={m} value={m}>
@@ -348,7 +348,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
         <button
           type="button"
           onClick={handleToday}
-          className="px-2.5 py-1 text-xs font-semibold text-[#5A5A40] hover:text-[#2D2D2D] hover:bg-[#E9E7D4] rounded-lg transition-colors cursor-pointer"
+          className="px-2.5 py-1 text-sm font-semibold text-[#5A5A40] hover:text-[#2D2D2D] hover:bg-[#E9E7D4] rounded-lg transition-colors cursor-pointer"
         >
           今
         </button>
@@ -375,15 +375,15 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <h2 className="text-lg sm:text-xl font-bold text-[#2D2D2D] font-serif tracking-tight">
+                <h2 className="text-xl font-bold text-[#2D2D2D] font-serif tracking-tight">
                   {currentYear} 年 {currentMonth} 月
                 </h2>
-                <span className="text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-[#5A5A40] text-white font-semibold">
+                <span className="text-xs sm:text-sm px-2 py-0.5 rounded-full bg-[#5A5A40] text-white font-semibold">
                   <span className="sm:hidden">{systemBadge.short}</span>
                   <span className="hidden sm:inline">{systemBadge.full}</span>
                 </span>
               </div>
-              <p className="text-[11px] sm:text-xs text-[#8A8A70] mt-0.5 truncate">
+              <p className="text-sm text-[#8A8A70] mt-0.5 truncate">
                 <span className="sm:hidden">{selectedEmployee.name}</span>
                 <span className="hidden sm:inline">
                   排班同仁：
@@ -447,7 +447,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
       {/* 窄螢幕班別色票圖例（僅色無字時輔助辨識） */}
       <div className="md:hidden px-3 py-2 border-b border-[#E9E7D4] bg-white/80">
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5">
-          <span className="text-[10px] font-bold text-[#8A8A70] whitespace-nowrap flex-shrink-0">
+          <span className="text-xs font-bold text-[#8A8A70] whitespace-nowrap flex-shrink-0">
             色票
           </span>
           {allShiftTypes.map((st) => (
@@ -460,7 +460,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                 className="w-3 h-3 rounded-sm border border-black/10 shadow-sm"
                 style={{ backgroundColor: st.color }}
               />
-              <span className="text-[10px] font-mono font-bold text-[#5A5A40]">{st.code}</span>
+              <span className="text-xs font-mono font-bold text-[#5A5A40]">{st.code}</span>
             </div>
           ))}
         </div>
@@ -468,14 +468,14 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
 
       {/* 勞基法卡位提示 */}
       {snappedFeedback && snappedFeedback.wasAdjusted && (
-        <div className="bg-[#D9A05B]/15 border-b border-[#D9A05B]/30 p-3 text-[#2D2D2D] text-xs flex items-start sm:items-center justify-between gap-2 animate-in slide-in-from-top duration-300">
+        <div className="bg-[#D9A05B]/15 border-b border-[#D9A05B]/30 p-3 text-[#2D2D2D] text-sm flex items-start sm:items-center justify-between gap-2 animate-in slide-in-from-top duration-300">
           <div className="flex items-start sm:items-center space-x-2 min-w-0">
             <AlertTriangle className="w-4 h-4 text-[#D9A05B] flex-shrink-0 animate-pulse mt-0.5 sm:mt-0" />
             <div className="min-w-0">
-              <strong className="font-bold text-[#D17A60] text-[11px] sm:text-xs">
+              <strong className="font-bold text-[#D17A60] text-sm">
                 觸發勞基法防護：已自動卡位至最靠近的合法位置
               </strong>
-              <p className="text-[#8A8A70] text-[10px] sm:text-[11px] mt-0.5 break-words">
+              <p className="text-[#8A8A70] text-xs sm:text-sm mt-0.5 break-words">
                 {snappedFeedback.reason}
               </p>
             </div>
@@ -493,7 +493,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
       )}
 
       {/* 星期欄 */}
-      <div className="grid grid-cols-7 bg-[#F8F7EB] border-b border-[#E9E7D4] text-center text-[10px] sm:text-xs font-bold text-[#8A8A70] py-1.5 sm:py-2">
+      <div className="grid grid-cols-7 bg-[#F8F7EB] border-b border-[#E9E7D4] text-center text-xs sm:text-sm font-bold text-[#8A8A70] py-1.5 sm:py-2">
         {weekHeadersFull.map((wh, idx) => (
           <div
             key={wh}
@@ -515,15 +515,15 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
               key={cg.cStartStr}
               className="bg-white/90 border-2 border-[#5A5A40]/40 rounded-xl sm:rounded-2xl p-1.5 sm:p-3 shadow-md space-y-1.5 sm:space-y-2 relative"
             >
-              <div className="flex flex-wrap items-center justify-between bg-[#F8F7EB] border border-[#E9E7D4] px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold text-[#5A5A40] gap-1.5">
-                <span className="bg-[#5A5A40] text-white px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-mono shadow-sm">
+              <div className="flex flex-wrap items-center justify-between bg-[#F8F7EB] border border-[#E9E7D4] px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-sm font-bold text-[#5A5A40] gap-1.5">
+                <span className="bg-[#5A5A40] text-white px-1.5 sm:px-2 py-0.5 rounded text-xs sm:text-sm font-mono shadow-sm">
                   第 {cg.cycleNumber} 週期
                   <span className="hidden sm:inline">
                     {' '}
                     ({cycleDays} 天 / {cycleDays / 7} 週)
                   </span>
                 </span>
-                <span className="text-[9px] sm:text-[11px] text-[#5A5A40] font-mono font-bold bg-[#5A5A40]/10 px-1.5 sm:px-2.5 py-0.5 rounded-lg border border-[#5A5A40]/20 truncate max-w-full">
+                <span className="text-sm text-[#5A5A40] font-mono font-bold bg-[#5A5A40]/10 px-1.5 sm:px-2.5 py-0.5 rounded-lg border border-[#5A5A40]/20 truncate max-w-full">
                   <span className="sm:hidden">
                     {cg.cStartStr.slice(5)}～{cg.cEndStr.slice(5)}
                   </span>
@@ -603,7 +603,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                         >
                           {isIllegalTarget && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black/10 z-30 rounded-lg sm:rounded-xl pointer-events-none">
-                              <span className="text-[8px] sm:text-[10px] font-bold text-red-600 bg-white/90 px-1 py-0.5 rounded shadow">
+                              <span className="text-xs font-bold text-red-600 bg-white/90 px-1 py-0.5 rounded shadow">
                                 規則限制
                               </span>
                             </div>
@@ -612,7 +612,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                           <div className="flex items-start justify-between gap-0.5">
                             <div className="flex items-center gap-0.5 min-w-0">
                               <span
-                                className={`font-mono font-black text-[11px] sm:text-sm ${
+                                className={`font-mono font-black text-sm ${
                                   day.isToday
                                     ? 'text-[#5A5A40] bg-[#5A5A40]/15 px-1 py-0.5 rounded'
                                     : day.isWeekend
@@ -623,7 +623,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                                 {day.dayNumber}
                               </span>
                               {day.isToday && (
-                                <span className="hidden sm:inline text-[9px] text-[#5A5A40] font-bold">
+                                <span className="hidden sm:inline text-sm text-[#5A5A40] font-bold">
                                   今
                                 </span>
                               )}
@@ -640,7 +640,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                                   title={day.nationalHoliday.name}
                                 />
                                 <span
-                                  className="hidden md:inline text-[10px] px-1.5 py-0.5 rounded font-medium bg-[#D17A60]/15 text-[#D17A60] border border-[#D17A60]/30 truncate max-w-[80px]"
+                                  className="hidden md:inline text-xs px-1.5 py-0.5 rounded font-medium bg-[#D17A60]/15 text-[#D17A60] border border-[#D17A60]/30 truncate max-w-[80px]"
                                   title={day.nationalHoliday.name}
                                 >
                                   {day.nationalHoliday.name.split(' ')[0]}
@@ -710,21 +710,21 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
               <Layers className="w-4 h-4" />
             </span>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold">
+              <div className="text-sm font-bold">
                 已選取{' '}
                 <span className="text-yellow-400 font-mono text-sm">{selectedDates.length}</span> 日
               </div>
-              <p className="text-[10px] text-gray-300 hidden md:block">
+              <p className="text-xs text-gray-300 hidden md:block">
                 點選班別套用；右側 + 可新增班別
               </p>
-              <p className="text-[10px] text-gray-300 block md:hidden">點選班別套用</p>
+              <p className="text-xs text-gray-300 block md:hidden">點選班別套用</p>
             </div>
             <button
               onClick={() => {
                 setSelectedDates([]);
                 setLastClickedDate(null);
               }}
-              className="sm:hidden text-xs bg-red-500/20 text-red-300 hover:bg-red-500/40 px-2 py-1 rounded-lg border border-red-500/30 flex-shrink-0 font-bold"
+              className="sm:hidden text-sm bg-red-500/20 text-red-300 hover:bg-red-500/40 px-2 py-1 rounded-lg border border-red-500/30 flex-shrink-0 font-bold"
             >
               取消
             </button>
@@ -735,7 +735,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
               <button
                 key={st.id}
                 onClick={() => handleApplyBatchShift(st.id)}
-                className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-transform hover:scale-105 active:scale-95 shadow cursor-pointer border border-white/20 flex items-center justify-center"
+                className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold transition-transform hover:scale-105 active:scale-95 shadow cursor-pointer border border-white/20 flex items-center justify-center"
                 style={{ backgroundColor: st.color, color: getContrastingTextColor(st.color) }}
                 title={`批次設置為：${st.name}`}
               >
@@ -744,7 +744,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
             ))}
             <button
               onClick={() => handleApplyBatchShift(EMPTY_SHIFT_TYPE_ID)}
-              className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-[10px] sm:text-xs font-bold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors cursor-pointer border border-slate-500"
+              className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors cursor-pointer border border-slate-500"
               title="清除當天排班（非休息日／例假／國定假日）"
             >
               空
@@ -753,7 +753,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
               <button
                 type="button"
                 onClick={onOpenShiftModal}
-                className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-[10px] sm:text-xs font-bold bg-[#5A5A40] hover:bg-[#484833] text-white transition-colors cursor-pointer border border-white/20 flex items-center justify-center gap-0.5"
+                className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold bg-[#5A5A40] hover:bg-[#484833] text-white transition-colors cursor-pointer border border-white/20 flex items-center justify-center gap-0.5"
                 title="新增／編輯班別"
                 aria-label="新增班別"
               >
@@ -765,7 +765,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                 setSelectedDates([]);
                 setLastClickedDate(null);
               }}
-              className="hidden sm:flex items-center gap-1 px-2.5 py-1 bg-red-500/80 hover:bg-red-500 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+              className="hidden sm:flex items-center gap-1 px-2.5 py-1 bg-red-500/80 hover:bg-red-500 text-white rounded-lg text-sm font-bold transition-colors cursor-pointer"
               title="取消框選"
             >
               <XCircle className="w-3.5 h-3.5" />

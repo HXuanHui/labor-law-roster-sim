@@ -980,7 +980,7 @@ export default function App() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-[#E9E7D4] pb-4">
           <div className="flex items-center space-x-2">
             {viewMode === 'timeline' && (
-              <h2 className="text-lg font-bold font-serif text-[#2D2D2D]">
+              <h2 className="text-xl font-bold font-serif text-[#2D2D2D]">
                 全體同仁矩陣排班總覽
               </h2>
             )}
@@ -990,7 +990,7 @@ export default function App() {
             <div className="flex bg-[#F8F7EB] p-1 rounded-xl border border-[#E9E7D4]">
               <button
                 onClick={() => setViewMode('month')}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
                   viewMode === 'month'
                     ? 'bg-[#5A5A40] text-white shadow-sm'
                     : 'text-[#8A8A70] hover:text-[#2D2D2D]'
@@ -1003,7 +1003,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => setViewMode('timeline')}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
                   viewMode === 'timeline'
                     ? 'bg-[#5A5A40] text-white shadow-sm'
                     : 'text-[#8A8A70] hover:text-[#2D2D2D]'
@@ -1025,12 +1025,12 @@ export default function App() {
               <Sparkles className="w-8 h-8 text-[#5A5A40]" />
             </div>
             <h2 className="text-xl font-bold text-[#2D2D2D] font-serif">歡迎使用排班模擬系統</h2>
-            <p className="text-xs text-[#8A8A70] leading-relaxed">
+            <p className="text-sm text-[#8A8A70] leading-relaxed">
               目前尚未建立事業單位排班同仁名單。請點擊下方按鈕開啟「初始設定導引 Panel」，快速設定國定假日、維護班別代碼並新增您的第一位排班同仁。
             </p>
             <button
               onClick={() => setIsSetupWizardModalOpen(true)}
-              className="px-6 py-3 bg-[#5A5A40] hover:bg-[#484833] text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
+              className="px-6 py-3 bg-[#5A5A40] hover:bg-[#484833] text-white text-sm font-bold rounded-xl shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
             >
               <Sparkles className="w-4 h-4 text-amber-300" />
               <span>開啟初始設定導引 Panel (國定假日 / 班別 / 同仁)</span>

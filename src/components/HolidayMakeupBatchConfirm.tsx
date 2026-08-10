@@ -58,7 +58,7 @@ export const HolidayMakeupBatchConfirm: React.FC<HolidayMakeupBatchConfirmProps>
     >
       <div className="flex items-start gap-2">
         <CalendarPlus className="w-4 h-4 text-[#D17A60] shrink-0 mt-0.5" />
-        <div className="text-xs text-[#2D2D2D] space-y-1">
+        <div className="text-sm text-[#2D2D2D] space-y-1">
           <p className="font-semibold">
             偵測到 {items.length} 筆國定假日逢六／日，請確認是否排入補假（班別「調」）
           </p>
@@ -74,7 +74,7 @@ export const HolidayMakeupBatchConfirm: React.FC<HolidayMakeupBatchConfirmProps>
           return (
             <li
               key={item.originalDate}
-              className="flex items-start gap-2 bg-white/70 border border-[#E9E7D4] rounded-lg px-2.5 py-2 text-xs"
+              className="flex items-start gap-2 bg-white/70 border border-[#E9E7D4] rounded-lg px-2.5 py-2 text-sm"
             >
               <input
                 type="checkbox"
@@ -116,7 +116,7 @@ export const HolidayMakeupBatchConfirm: React.FC<HolidayMakeupBatchConfirmProps>
         <button
           type="button"
           onClick={onSkipAll}
-          className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-[#D9D7C2] text-[#5A5A40] hover:bg-white transition-colors cursor-pointer flex items-center gap-1"
+          className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-[#D9D7C2] text-[#5A5A40] hover:bg-white transition-colors cursor-pointer flex items-center gap-1"
         >
           <X className="w-3.5 h-3.5" />
           全部略過
@@ -124,7 +124,7 @@ export const HolidayMakeupBatchConfirm: React.FC<HolidayMakeupBatchConfirmProps>
         <button
           type="button"
           onClick={handleConfirm}
-          className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#5A5A40] hover:bg-[#484833] text-white transition-colors cursor-pointer flex items-center gap-1"
+          className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-[#5A5A40] hover:bg-[#484833] text-white transition-colors cursor-pointer flex items-center gap-1"
         >
           <Check className="w-3.5 h-3.5" />
           確認保留勾選項（{selectedKeys.size}）

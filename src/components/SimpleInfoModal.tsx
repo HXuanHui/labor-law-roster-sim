@@ -57,11 +57,11 @@ export const SimpleInfoModal: React.FC<SimpleInfoModalProps> = ({
             <div className="min-w-0">
               <h2
                 id="simple-info-modal-title"
-                className="text-lg font-bold text-[#2D2D2D] font-serif"
+                className="text-xl font-bold text-[#2D2D2D] font-serif"
               >
                 {title}
               </h2>
-              {subtitle && <p className="text-xs text-[#8A8A70] mt-0.5">{subtitle}</p>}
+              {subtitle && <p className="text-sm text-[#8A8A70] mt-0.5">{subtitle}</p>}
             </div>
           </div>
           <button
@@ -80,7 +80,7 @@ export const SimpleInfoModal: React.FC<SimpleInfoModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-[#5A5A40] hover:bg-[#484833] text-white text-xs font-bold transition-colors cursor-pointer"
+            className="px-4 py-2 rounded-xl bg-[#5A5A40] hover:bg-[#484833] text-white text-sm font-bold transition-colors cursor-pointer"
           >
             關閉
           </button>

@@ -31,7 +31,7 @@ export const HolidayMakeupConfirmBanner: React.FC<HolidayMakeupConfirmBannerProp
     >
       <div className="flex items-start gap-2">
         <CalendarPlus className="w-4 h-4 text-[#D17A60] shrink-0 mt-0.5" />
-        <div className="text-xs text-[#2D2D2D] space-y-1">
+        <div className="text-sm text-[#2D2D2D] space-y-1">
           <p className="font-semibold">
             此假日為{proposal.originalWeekdayLabel}，系統建議產生補假（班別「調」）
           </p>
@@ -56,7 +56,7 @@ export const HolidayMakeupConfirmBanner: React.FC<HolidayMakeupConfirmBannerProp
         <button
           type="button"
           onClick={onSkip}
-          className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-[#D9D7C2] text-[#5A5A40] hover:bg-white transition-colors cursor-pointer flex items-center gap-1"
+          className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-[#D9D7C2] text-[#5A5A40] hover:bg-white transition-colors cursor-pointer flex items-center gap-1"
         >
           <X className="w-3.5 h-3.5" />
           略過補假
@@ -64,7 +64,7 @@ export const HolidayMakeupConfirmBanner: React.FC<HolidayMakeupConfirmBannerProp
         <button
           type="button"
           onClick={onAccept}
-          className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#5A5A40] hover:bg-[#484833] text-white transition-colors cursor-pointer flex items-center gap-1"
+          className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-[#5A5A40] hover:bg-[#484833] text-white transition-colors cursor-pointer flex items-center gap-1"
         >
           <Check className="w-3.5 h-3.5" />
           保留補假

@@ -21,7 +21,7 @@ interface SystemSelectorBarProps {
 
 /** 同仁／制度觸發鈕共用外觀（白底橄欖字＋圓角陰影）。 */
 const triggerClass =
-  'w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-white border border-[#D9D7C2] text-xs font-bold text-[#5A5A40] shadow-sm cursor-pointer';
+  'w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-white border border-[#D9D7C2] text-sm font-bold text-[#5A5A40] shadow-sm cursor-pointer';
 
 /**
  * 同仁下拉與變形工時制度切換列。
@@ -78,7 +78,7 @@ export const SystemSelectorBar: React.FC<SystemSelectorBarProps> = ({
             }}
             className={`${
               compact ? 'w-full justify-between px-3 py-2' : 'px-3 py-1.5'
-            } rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-1.5 cursor-pointer ${
+            } rounded-lg text-sm font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-1.5 cursor-pointer ${
               isActive
                 ? 'bg-[#5A5A40] text-white shadow-sm'
                 : 'text-[#5A5A40] hover:text-[#2D2D2D] hover:bg-[#D9D7C2]/60'

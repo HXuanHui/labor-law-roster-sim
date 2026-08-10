@@ -222,8 +222,8 @@ export const NationalHolidaySettingsModal: React.FC<NationalHolidaySettingsModal
               <Sun className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-base sm:text-lg font-bold text-[#2D2D2D] font-serif truncate">國定假日與紀念日設定</h2>
-              <p className="text-[11px] sm:text-xs text-[#8A8A70] line-clamp-2">
+              <h2 className="text-lg sm:text-xl font-bold text-[#2D2D2D] font-serif truncate">國定假日與紀念日設定</h2>
+              <p className="text-sm text-[#8A8A70] line-clamp-2">
                 自行輸入或編輯國定假日與公司自訂放假日（對照勞基法第39條出勤給薪）
               </p>
             </div>
@@ -248,31 +248,31 @@ export const NationalHolidaySettingsModal: React.FC<NationalHolidaySettingsModal
 
         {/* Add New Holiday Form */}
         <form onSubmit={handleAdd} className="bg-[#F8F7EB] p-3 sm:p-4 rounded-xl border border-[#E9E7D4] space-y-3">
-          <div className="text-xs font-bold text-[#5A5A40] uppercase tracking-wider flex items-center gap-1">
+          <div className="text-sm font-bold text-[#5A5A40] uppercase tracking-wider flex items-center gap-1">
             <Plus className="w-3.5 h-3.5" />
             <span>新增自訂/國定假日</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs text-[#8A8A70] mb-1">選擇日期</label>
+              <label className="block text-sm text-[#8A8A70] mb-1">選擇日期</label>
               <input
                 type="date"
                 value={newDate}
                 onChange={(e) => setNewDate(e.target.value)}
-                className="w-full bg-white border border-[#D9D7C2] rounded-xl px-3 py-2 text-xs text-[#2D2D2D] font-mono outline-none focus:ring-2 focus:ring-[#5A5A40]"
+                className="w-full bg-white border border-[#D9D7C2] rounded-xl px-3 py-2 text-sm text-[#2D2D2D] font-mono outline-none focus:ring-2 focus:ring-[#5A5A40]"
               />
             </div>
 
             <div>
-              <label className="block text-xs text-[#8A8A70] mb-1">假日名稱 (下拉選擇或自行輸入)</label>
+              <label className="block text-sm text-[#8A8A70] mb-1">假日名稱 (下拉選擇或自行輸入)</label>
               <input
                 type="text"
                 list="holiday-name-suggestions"
                 placeholder="選擇或輸入假日名稱"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                className="w-full bg-white border border-[#D9D7C2] rounded-xl px-3 py-2 text-xs text-[#2D2D2D] outline-none focus:ring-2 focus:ring-[#5A5A40]"
+                className="w-full bg-white border border-[#D9D7C2] rounded-xl px-3 py-2 text-sm text-[#2D2D2D] outline-none focus:ring-2 focus:ring-[#5A5A40]"
               />
               <datalist id="holiday-name-suggestions">
                 {holidayNameOptions.map((name, idx) => (
@@ -284,7 +284,7 @@ export const NationalHolidaySettingsModal: React.FC<NationalHolidaySettingsModal
             <div className="flex items-end">
               <button
                 type="submit"
-                className="w-full bg-[#5A5A40] hover:bg-[#484833] text-white font-bold text-xs py-2 px-4 rounded-xl flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                className="w-full bg-[#5A5A40] hover:bg-[#484833] text-white font-bold text-sm py-2 px-4 rounded-xl flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>新增假日</span>
@@ -292,7 +292,7 @@ export const NationalHolidaySettingsModal: React.FC<NationalHolidaySettingsModal
             </div>
           </div>
 
-          {errorMsg && <p className="text-xs text-[#D17A60]">{errorMsg}</p>}
+          {errorMsg && <p className="text-sm text-[#D17A60]">{errorMsg}</p>}
 
           {/* 週末補假確認列 */}
           {pendingMakeup && (
@@ -307,7 +307,7 @@ export const NationalHolidaySettingsModal: React.FC<NationalHolidaySettingsModal
 
         {/* Current Holidays List */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs font-bold text-[#8A8A70]">
+          <div className="flex items-center justify-between text-sm font-bold text-[#8A8A70]">
             <span>現行國定與自訂假日清單 ({sortedHolidays.length})</span>
             <div className="flex items-center space-x-3">
               {onClearAllHolidays && sortedHolidays.length > 0 && (
@@ -320,7 +320,7 @@ export const NationalHolidaySettingsModal: React.FC<NationalHolidaySettingsModal
                       setBatchSkippedSources(new Set());
                     }
                   }}
-                  className="text-[#D17A60] hover:text-[#a84d34] flex items-center gap-1 text-[11px] hover:underline cursor-pointer transition-colors"
+                  className="text-[#D17A60] hover:text-[#a84d34] flex items-center gap-1 text-sm hover:underline cursor-pointer transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>全部刪除</span>
@@ -333,7 +333,7 @@ export const NationalHolidaySettingsModal: React.FC<NationalHolidaySettingsModal
                   setPendingMakeup(null);
                   setBatchSkippedSources(new Set());
                 }}
-                className="text-[#8A8A70] hover:text-[#2D2D2D] flex items-center gap-1 text-[11px] hover:underline cursor-pointer transition-colors"
+                className="text-[#8A8A70] hover:text-[#2D2D2D] flex items-center gap-1 text-sm hover:underline cursor-pointer transition-colors"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>重置為法定預設值</span>
@@ -345,7 +345,7 @@ export const NationalHolidaySettingsModal: React.FC<NationalHolidaySettingsModal
             {sortedHolidays.map((h) => (
               <div
                 key={h.id}
-                className="bg-[#F8F7EB] border border-[#E9E7D4] p-2.5 rounded-xl flex items-center justify-between text-xs"
+                className="bg-[#F8F7EB] border border-[#E9E7D4] p-2.5 rounded-xl flex items-center justify-between text-sm"
               >
                 <div className="flex items-center space-x-3">
                   <span className="font-mono font-bold text-[#D17A60] px-2 py-0.5 bg-[#D17A60]/10 rounded border border-[#D17A60]/20">
@@ -355,7 +355,7 @@ export const NationalHolidaySettingsModal: React.FC<NationalHolidaySettingsModal
                     <div className="font-semibold text-[#2D2D2D] flex items-center gap-1.5 flex-wrap">
                       <span>{h.name}</span>
                       {h.kind === 'makeup' && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#C46B4A]/15 text-[#C46B4A] border border-[#C46B4A]/25">
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-[#C46B4A]/15 text-[#C46B4A] border border-[#C46B4A]/25">
                           調
                           {h.substitutesFor === 'rest'
                             ? '·替休'
@@ -365,7 +365,7 @@ export const NationalHolidaySettingsModal: React.FC<NationalHolidaySettingsModal
                         </span>
                       )}
                     </div>
-                    <div className="text-[10px] text-[#8A8A70]">
+                    <div className="text-xs text-[#8A8A70]">
                       {formatTaiwanDate(h.date)} · {h.isStatutory ? '法定國定假日' : '自訂公司假日'}
                       {h.kind === 'makeup' && h.sourceDate
                         ? ` · 對應原日 ${h.sourceDate}`
@@ -392,7 +392,7 @@ export const NationalHolidaySettingsModal: React.FC<NationalHolidaySettingsModal
         <div className="shrink-0 border-t border-[#E9E7D4] px-4 sm:px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex justify-end bg-white">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white font-semibold text-xs rounded-xl transition-colors shadow-sm"
+            className="px-4 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white font-semibold text-sm rounded-xl transition-colors shadow-sm"
           >
             完成儲存
           </button>

@@ -151,16 +151,16 @@ export const Header: React.FC<HeaderProps> = ({
 
   // 導覽工具鈕統一樣式（白底橄欖字），避免功能色過於雜亂
   const toolBtnClass =
-    'px-3 py-1.5 rounded-lg bg-white hover:bg-[#E9E7D4] text-[#5A5A40] text-xs font-medium border border-[#E9E7D4] flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer';
+    'px-3 py-1.5 rounded-lg bg-white hover:bg-[#E9E7D4] text-[#5A5A40] text-sm font-medium border border-[#E9E7D4] flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer';
   const toolBtnMobileClass =
-    'w-full px-3 py-2.5 rounded-xl bg-white hover:bg-[#E9E7D4] text-[#5A5A40] text-xs font-medium border border-[#E9E7D4] flex items-center gap-2 transition-colors cursor-pointer text-left';
+    'w-full px-3 py-2.5 rounded-xl bg-white hover:bg-[#E9E7D4] text-[#5A5A40] text-sm font-medium border border-[#E9E7D4] flex items-center gap-2 transition-colors cursor-pointer text-left';
   const toolIconClass = 'w-3.5 h-3.5 text-[#5A5A40] flex-shrink-0';
   const toolIconMobileClass = 'w-4 h-4 text-[#5A5A40] flex-shrink-0';
   const dropdownItemClass =
-    'w-full px-3 py-2 text-left text-xs font-medium text-[#5A5A40] hover:bg-[#E9E7D4] flex items-center gap-2 transition-colors cursor-pointer';
+    'w-full px-3 py-2 text-left text-sm font-medium text-[#5A5A40] hover:bg-[#E9E7D4] flex items-center gap-2 transition-colors cursor-pointer';
   const dropdownDangerItemClass =
-    'w-full px-3 py-2 text-left text-xs font-medium text-[#D17A60] hover:bg-[#D17A60]/10 flex items-center gap-2 transition-colors cursor-pointer';
-  const sectionLabelClass = 'px-1 pt-2 pb-1 text-[10px] font-bold tracking-wide text-[#8A8A70] uppercase';
+    'w-full px-3 py-2 text-left text-sm font-medium text-[#D17A60] hover:bg-[#D17A60]/10 flex items-center gap-2 transition-colors cursor-pointer';
+  const sectionLabelClass = 'px-1 pt-2 pb-1 text-xs font-bold tracking-wide text-[#8A8A70] uppercase';
 
   return (
     <header className="bg-[#F8F7EB] text-[#2D2D2D] border-b border-[#E9E7D4]">
@@ -172,7 +172,7 @@ export const Header: React.FC<HeaderProps> = ({
               <Calendar className="w-5 h-5 text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-bold tracking-tight text-[#2D2D2D] truncate">
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-[#2D2D2D] truncate">
                 排班模擬系統
               </h1>
             </div>
@@ -184,13 +184,13 @@ export const Header: React.FC<HeaderProps> = ({
               {violationCount > 0 ? (
                 <button
                   onClick={scrollToAudit}
-                  className="px-2.5 py-1 rounded-full text-xs font-medium bg-[#D17A60]/15 text-[#D17A60] border border-[#D17A60]/30 animate-pulse cursor-pointer hover:bg-[#D17A60]/25 transition-colors"
+                  className="px-2.5 py-1 rounded-full text-sm font-medium bg-[#D17A60]/15 text-[#D17A60] border border-[#D17A60]/30 animate-pulse cursor-pointer hover:bg-[#D17A60]/25 transition-colors"
                   title="點擊前往班表檢核表"
                 >
                   ⚠️ {violationCount}
                 </button>
               ) : (
-                <span className="px-2 py-1 rounded-full text-xs font-medium bg-[#4A7C59]/15 text-[#4A7C59] border border-[#4A7C59]/30 flex items-center gap-1">
+                <span className="px-2 py-1 rounded-full text-sm font-medium bg-[#4A7C59]/15 text-[#4A7C59] border border-[#4A7C59]/30 flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5" />
                 </span>
               )}
@@ -201,7 +201,7 @@ export const Header: React.FC<HeaderProps> = ({
               {violationCount > 0 ? (
                 <button
                   onClick={scrollToAudit}
-                  className="px-3 py-1 rounded-lg text-xs font-medium bg-[#D17A60]/15 text-[#D17A60] border border-[#D17A60]/30 flex items-center gap-1.5 animate-pulse cursor-pointer hover:bg-[#D17A60]/25 transition-colors"
+                  className="px-3 py-1 rounded-lg text-sm font-medium bg-[#D17A60]/15 text-[#D17A60] border border-[#D17A60]/30 flex items-center gap-1.5 animate-pulse cursor-pointer hover:bg-[#D17A60]/25 transition-colors"
                   title="點擊前往班表檢核表查看需留意項目"
                 >
                   <span className="w-2 h-2 rounded-full bg-[#D17A60]" />
@@ -209,7 +209,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
               ) : (
                 <div
-                  className="px-3 py-1 rounded-lg text-xs font-medium bg-[#4A7C59]/15 text-[#4A7C59] border border-[#4A7C59]/30 flex items-center gap-1.5"
+                  className="px-3 py-1 rounded-lg text-sm font-medium bg-[#4A7C59]/15 text-[#4A7C59] border border-[#4A7C59]/30 flex items-center gap-1.5"
                   title="依內建規則之模擬結果，非正式法律意見或勞動檢查結論"
                 >
                   <ShieldCheck className="w-4 h-4" />

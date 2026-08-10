@@ -200,9 +200,9 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-[#2D2D2D] font-serif flex items-center gap-2">
+            <h2 className="text-xl font-bold text-[#2D2D2D] font-serif flex items-center gap-2">
               <span>全人員排班時間軸矩陣</span>
-              <span className="text-xs px-2 py-0.5 rounded bg-[#E9E7D4] text-[#5A5A40] font-mono">
+              <span className="text-sm px-2 py-0.5 rounded bg-[#E9E7D4] text-[#5A5A40] font-mono">
                 {daysCount} 天週期檢視
               </span>
             </h2>
@@ -212,17 +212,17 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
         <div className="flex items-center space-x-2 flex-wrap">
           <button
             onClick={handlePrevPeriod}
-            className="p-1.5 rounded-lg bg-white border border-[#D9D7C2] text-[#5A5A40] hover:text-[#2D2D2D] hover:bg-[#E9E7D4] text-xs font-semibold flex items-center gap-1 transition-colors shadow-sm"
+            className="p-1.5 rounded-lg bg-white border border-[#D9D7C2] text-[#5A5A40] hover:text-[#2D2D2D] hover:bg-[#E9E7D4] text-sm font-semibold flex items-center gap-1 transition-colors shadow-sm"
           >
             <ChevronLeft className="w-4 h-4" />
             <span>前 {daysCount} 天</span>
           </button>
-          <span className="text-xs font-mono text-[#2D2D2D] px-2 font-bold">
+          <span className="text-sm font-mono text-[#2D2D2D] px-2 font-bold">
             {startDateStr} ~ {datesList[datesList.length - 1]}
           </span>
           <button
             onClick={handleNextPeriod}
-            className="p-1.5 rounded-lg bg-white border border-[#D9D7C2] text-[#5A5A40] hover:text-[#2D2D2D] hover:bg-[#E9E7D4] text-xs font-semibold flex items-center gap-1 transition-colors shadow-sm"
+            className="p-1.5 rounded-lg bg-white border border-[#D9D7C2] text-[#5A5A40] hover:text-[#2D2D2D] hover:bg-[#E9E7D4] text-sm font-semibold flex items-center gap-1 transition-colors shadow-sm"
           >
             <span>後 {daysCount} 天</span>
             <ChevronRight className="w-4 h-4" />
@@ -233,7 +233,7 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-[#F8F7EB] border-b border-[#E9E7D4] text-xs font-bold text-[#8A8A70]">
+            <tr className="bg-[#F8F7EB] border-b border-[#E9E7D4] text-sm font-bold text-[#8A8A70]">
               <th className="p-3 sticky left-0 bg-[#F8F7EB] z-20 min-w-[150px] border-r border-[#E9E7D4] shadow-sm">
                 同仁姓名 / 職稱
               </th>
@@ -251,13 +251,13 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
                       isWeekend ? 'bg-[#D17A60]/10 text-[#D17A60]' : 'text-[#5A5A40]'
                     }`}
                   >
-                    <div className="text-[10px] text-[#8A8A70] font-normal">
+                    <div className="text-xs text-[#8A8A70] font-normal">
                       {monthNum}/{dayNum}
                     </div>
-                    <div className="font-bold text-xs">{weekday}</div>
+                    <div className="font-bold text-sm">{weekday}</div>
                     {holiday && (
                       <div
-                        className="text-[9px] text-[#D17A60] truncate max-w-[70px] mx-auto mt-0.5"
+                        className="text-sm text-[#D17A60] truncate max-w-[70px] mx-auto mt-0.5"
                         title={holiday.name}
                       >
                         {holiday.name.split(' ')[0]}
@@ -269,7 +269,7 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-[#E9E7D4] text-xs">
+          <tbody className="divide-y divide-[#E9E7D4] text-sm">
             {employees.map((emp) => {
               const isSelected = emp.id === selectedEmployeeId;
 
@@ -287,17 +287,17 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
                     }`}
                   >
                     <div className="flex items-center space-x-2">
-                      <div className="w-7 h-7 rounded-full bg-[#5A5A40]/20 text-[#5A5A40] font-bold flex items-center justify-center text-xs border border-[#5A5A40]/30">
+                      <div className="w-7 h-7 rounded-full bg-[#5A5A40]/20 text-[#5A5A40] font-bold flex items-center justify-center text-sm border border-[#5A5A40]/30">
                         {emp.name[0]}
                       </div>
                       <div>
-                        <div className="font-bold text-[#2D2D2D] text-xs flex items-center gap-1">
+                        <div className="font-bold text-[#2D2D2D] text-sm flex items-center gap-1">
                           <span>{emp.name}</span>
                           {isSelected && (
                             <span className="w-1.5 h-1.5 rounded-full bg-[#5A5A40]" />
                           )}
                         </div>
-                        <div className="text-[10px] text-[#8A8A70]">{emp.role}</div>
+                        <div className="text-xs text-[#8A8A70]">{emp.role}</div>
                       </div>
                     </div>
                   </td>
@@ -429,15 +429,15 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
               <Layers className="w-4 h-4" />
             </span>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold">
+              <div className="text-sm font-bold">
                 已選取{' '}
                 <span className="text-yellow-400 font-mono text-sm">{selectedCells.length}</span> 格
               </div>
-              <p className="text-[10px] text-gray-300">點選班別即可套用（Esc 取消）</p>
+              <p className="text-xs text-gray-300">點選班別即可套用（Esc 取消）</p>
             </div>
             <button
               onClick={() => setSelectedCells([])}
-              className="sm:hidden text-xs bg-red-500/20 text-red-300 hover:bg-red-500/40 px-2 py-1 rounded-lg border border-red-500/30 flex-shrink-0 font-bold"
+              className="sm:hidden text-sm bg-red-500/20 text-red-300 hover:bg-red-500/40 px-2 py-1 rounded-lg border border-red-500/30 flex-shrink-0 font-bold"
             >
               取消
             </button>
@@ -448,7 +448,7 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
               <button
                 key={st.id}
                 onClick={() => handleApplyBatchShift(st.id)}
-                className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-transform hover:scale-105 active:scale-95 shadow cursor-pointer border border-white/20 flex items-center justify-center"
+                className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold transition-transform hover:scale-105 active:scale-95 shadow cursor-pointer border border-white/20 flex items-center justify-center"
                 style={{ backgroundColor: st.color, color: getContrastingTextColor(st.color) }}
                 title={`批次設置為：${st.name}`}
               >
@@ -457,7 +457,7 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
             ))}
             <button
               onClick={() => handleApplyBatchShift(EMPTY_SHIFT_TYPE_ID)}
-              className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-[10px] sm:text-xs font-bold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors cursor-pointer border border-slate-500"
+              className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors cursor-pointer border border-slate-500"
               title="清除當天排班（非休息日／例假／國定假日）"
             >
               空
@@ -466,7 +466,7 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
               <button
                 type="button"
                 onClick={onOpenShiftModal}
-                className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-[10px] sm:text-xs font-bold bg-[#5A5A40] hover:bg-[#484833] text-white transition-colors cursor-pointer border border-white/20 flex items-center justify-center"
+                className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold bg-[#5A5A40] hover:bg-[#484833] text-white transition-colors cursor-pointer border border-white/20 flex items-center justify-center"
                 title="新增／編輯班別"
                 aria-label="新增班別"
               >
@@ -475,7 +475,7 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
             )}
             <button
               onClick={() => setSelectedCells([])}
-              className="hidden sm:flex items-center gap-1 px-2.5 py-1 bg-red-500/80 hover:bg-red-500 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+              className="hidden sm:flex items-center gap-1 px-2.5 py-1 bg-red-500/80 hover:bg-red-500 text-white rounded-lg text-sm font-bold transition-colors cursor-pointer"
               title="取消框選"
             >
               <XCircle className="w-3.5 h-3.5" />

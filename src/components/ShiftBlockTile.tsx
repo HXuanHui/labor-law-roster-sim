@@ -64,7 +64,7 @@ interface ShiftBlockTileProps {
 
 /** 工時標籤／按鈕共用半透明樣式。 */
 const hourChipClass =
-  'text-[10px] text-center font-mono opacity-80 font-semibold bg-black/20 rounded py-0.5 px-1';
+  'text-xs text-center font-mono opacity-80 font-semibold bg-black/20 rounded py-0.5 px-1';
 const hourBtnClass =
   'w-5 h-5 rounded bg-black/20 hover:bg-black/35 flex items-center justify-center cursor-pointer text-current';
 
@@ -376,7 +376,7 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
 
       {isSnappedTarget && (
         <>
-          <div className="hidden md:flex absolute -top-3 left-1/2 -translate-x-1/2 bg-[#D17A60] text-white font-bold text-[10px] px-2 py-0.5 rounded-full shadow-md items-center gap-1 z-30 whitespace-nowrap animate-pulse border border-[#D17A60]">
+          <div className="hidden md:flex absolute -top-3 left-1/2 -translate-x-1/2 bg-[#D17A60] text-white font-bold text-xs px-2 py-0.5 rounded-full shadow-md items-center gap-1 z-30 whitespace-nowrap animate-pulse border border-[#D17A60]">
             <AlertTriangle className="w-3 h-3" />
             <span>卡位合法位置</span>
           </div>
@@ -396,7 +396,7 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
           isCompact ? 'min-h-[52px]' : 'min-h-[72px]'
         }`}
       >
-        <div className="flex items-center justify-between opacity-80 group-hover:opacity-100 text-xs">
+        <div className="flex items-center justify-between opacity-80 group-hover:opacity-100 text-sm">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -459,13 +459,13 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
                 {shiftType.code}
               </div>
               {!isCompact && (
-                <div className="text-[11px] font-medium opacity-90 truncate max-w-[90px] mx-auto">
+                <div className="text-sm font-medium opacity-90 truncate max-w-[90px] mx-auto">
                   {shiftType.name.split(' ')[0]}
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-xs font-medium text-[#5A5A40] py-1">點擊選取</div>
+            <div className="text-sm font-medium text-[#5A5A40] py-1">點擊選取</div>
           )}
         </div>
       </div>
