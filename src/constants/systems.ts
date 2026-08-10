@@ -2,7 +2,7 @@ import { ScheduleSystemType, SystemConfig } from '../types';
 
 export const SYSTEM_CONFIGS: Record<ScheduleSystemType, SystemConfig> = {
   'standard': {
-    name: '一般工時 (週休二日制)',
+    name: '一般工時',
     type: 'standard',
     cycleDays: 7,
     maxConsecutiveWorkDays: 6,
@@ -15,7 +15,7 @@ export const SYSTEM_CONFIGS: Record<ScheduleSystemType, SystemConfig> = {
     applicableIndustries: '所有未特別申請變形工時之一般行業',
   },
   '2-week': {
-    name: '2週變形工時 (彈性工時)',
+    name: '2週變形工時',
     type: '2-week',
     cycleDays: 14,
     maxConsecutiveWorkDays: 6,
@@ -28,7 +28,7 @@ export const SYSTEM_CONFIGS: Record<ScheduleSystemType, SystemConfig> = {
     applicableIndustries: '適用勞基法之所有行業 (如加油站、批發零售、一般製造等)',
   },
   '4-week': {
-    name: '4週變形工時 (服務業輪班)',
+    name: '4週變形工時',
     type: '4-week',
     cycleDays: 28,
     maxConsecutiveWorkDays: 12,
@@ -41,7 +41,7 @@ export const SYSTEM_CONFIGS: Record<ScheduleSystemType, SystemConfig> = {
     applicableIndustries: '中央主管機關指定行業：餐飲業、觀光飯店、銀行業、娛樂業、醫療保健業、加油站業等',
   },
   '8-week': {
-    name: '8週變形工時 (製造/運輸業)',
+    name: '8週變形工時',
     type: '8-week',
     cycleDays: 56,
     maxConsecutiveWorkDays: 6,

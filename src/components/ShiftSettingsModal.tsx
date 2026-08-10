@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ShiftType } from '../types';
 import { Layers, Plus, Trash2, X, Edit2, Check, Clock } from 'lucide-react';
+import { getContrastingTextColor } from '../utils/colorContrast';
+import { SYSTEM_PROTECTED_SHIFT_IDS } from '../constants/shifts';
 
 interface ShiftSettingsModalProps {
   isOpen: boolean;
@@ -74,7 +76,8 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
       workHours: category === 'work' ? Number(workHours) : 0,
       breakHours: Number(breakHours),
       color,
-      textColor: '#ffffff',
+      // 依背景亮度寫入深／淺字色，供匯出等仍讀 textColor 的場景使用
+      textColor: getContrastingTextColor(color),
       category,
     });
 
@@ -87,9 +90,17 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
     setEditForm({ ...st });
   };
 
+  /**
+   * 儲存編輯中的班別；同步依背景色重算對比文字色。
+   */
   const handleSaveEdit = () => {
     if (!editingId || !editForm.code || !editForm.name) return;
-    onUpdateShiftType(editForm as ShiftType);
+    const nextColor = editForm.color || '#5A5A40';
+    onUpdateShiftType({
+      ...(editForm as ShiftType),
+      color: nextColor,
+      textColor: getContrastingTextColor(nextColor),
+    });
     setEditingId(null);
     setEditForm({});
   };
@@ -355,8 +366,11 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
                 >
                   <div className="flex items-center space-x-3">
                     <div
-                      className="w-8 h-8 rounded-lg font-bold text-white flex items-center justify-center font-mono text-xs shadow-sm"
-                      style={{ backgroundColor: st.color }}
+                      className="w-8 h-8 rounded-lg font-bold flex items-center justify-center font-mono text-xs shadow-sm"
+                      style={{
+                        backgroundColor: st.color,
+                        color: getContrastingTextColor(st.color),
+                      }}
                     >
                       {st.code}
                     </div>
@@ -377,6 +391,8 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
                           ? '休息日（不支薪或計算休息日加班費）'
                           : st.category === 'mandatory'
                           ? '例假日（不得隨意加班，除天災事變外）'
+                          : st.category === 'national_holiday_makeup'
+                          ? '國定假日補假「調」（審查可替休／例；計薪視同國假）'
                           : '國定假日'}
                       </div>
                     </div>
@@ -391,7 +407,7 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
                       <Edit2 className="w-4 h-4" />
                     </button>
 
-                    {!['shift_rest', 'shift_mandatory', 'shift_national_holiday'].includes(st.id) && (
+                    {!(SYSTEM_PROTECTED_SHIFT_IDS as readonly string[]).includes(st.id) && (
                       <button
                         onClick={() => onDeleteShiftType(st.id)}
                         className="p-1.5 text-[#8A8A70] hover:text-[#D17A60] hover:bg-[#D17A60]/10 rounded-lg transition-colors"

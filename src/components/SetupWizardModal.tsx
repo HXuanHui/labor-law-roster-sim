@@ -1,8 +1,29 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { NationalHoliday, ShiftType, Employee, ScheduleSystemType } from '../types';
 import { Sun, Layers, Users, CheckCircle, ArrowRight, ArrowLeft, Plus, Trash2, X, Sparkles, RotateCcw, Edit2, Check, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { SYSTEM_CONFIGS } from '../constants/systems';
+import { getContrastingTextColor } from '../utils/colorContrast';
+import {
+  buildMakeupHolidayName,
+  buildMakeupHolidayPayload,
+  collectPendingMakeupProposals,
+  findMakeupHolidaysForSource,
+  hasHolidayOnDate,
+  MakeupProposal,
+  PendingMakeupItem,
+  proposeMakeupDate,
+} from '../utils/holidayMakeup';
+import { HolidayMakeupConfirmBanner } from './HolidayMakeupConfirmBanner';
+import { HolidayMakeupBatchConfirm } from './HolidayMakeupBatchConfirm';
+import { SYSTEM_PROTECTED_SHIFT_IDS } from '../constants/shifts';
+
+/** 待使用者確認之補假草稿。 */
+interface PendingMakeup {
+  proposal: MakeupProposal;
+  originalName: string;
+  isStatutory: boolean;
+}
 
 interface SetupWizardModalProps {
   isOpen: boolean;
@@ -64,7 +85,53 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
   // Form states for Step 1: Holiday
   const [hDate, setHDate] = useState('');
   const [hName, setHName] = useState('');
+  const [hError, setHError] = useState('');
+  const [pendingMakeup, setPendingMakeup] = useState<PendingMakeup | null>(null);
+  /** 使用者本次「全部略過」的原日，避免初始化批次提示反覆彈出。 */
+  const [batchSkippedSources, setBatchSkippedSources] = useState<Set<string>>(() => new Set());
 
+  // 每次開啟導引面板：重新掃描尚未建立之補假（清除上次略過狀態）
+  useEffect(() => {
+    if (isOpen) {
+      setBatchSkippedSources(new Set());
+      setPendingMakeup(null);
+    }
+  }, [isOpen]);
+
+  // 初始化／既有清單中尚缺補假的週末國假 → 批次確認
+  const pendingBatchAll = useMemo(
+    () => collectPendingMakeupProposals(nationalHolidays),
+    [nationalHolidays]
+  );
+  const pendingBatchVisible = useMemo(
+    () => pendingBatchAll.filter((i) => !batchSkippedSources.has(i.originalDate)),
+    [pendingBatchAll, batchSkippedSources]
+  );
+
+  /**
+   * 批次確認保留勾選之補假（寫入後由 App 自動排「調」班）。
+   * @param selected 勾選項目
+   */
+  const handleBatchConfirm = (selected: PendingMakeupItem[]) => {
+    selected.forEach((item) => {
+      onAddHoliday(buildMakeupHolidayPayload(item, item.originalName, item.isStatutory));
+    });
+    // 未勾選者視為本次略過，避免殘留提示
+    setBatchSkippedSources((prev) => {
+      const next = new Set(prev);
+      pendingBatchVisible.forEach((i) => next.add(i.originalDate));
+      return next;
+    });
+  };
+
+  /** 批次全部略過補假建議。 */
+  const handleBatchSkipAll = () => {
+    setBatchSkippedSources((prev) => {
+      const next = new Set(prev);
+      pendingBatchVisible.forEach((i) => next.add(i.originalDate));
+      return next;
+    });
+  };
   // Form states for Step 2: Shift
   const [sName, setSName] = useState('');
   const [sCode, setSCode] = useState('');
@@ -115,12 +182,107 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
 
   if (!isOpen) return null;
 
+  /**
+   * 新增假日；若逢六／日則寫入原日後顯示補假確認列。
+   */
   const handleAddHolidaySubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!hDate) return;
-    onAddHoliday({ date: hDate, name: hName.trim() || '自訂假日' });
+    if (!hDate) {
+      setHError('請選擇假日日期');
+      return;
+    }
+    if (hasHolidayOnDate(nationalHolidays, hDate)) {
+      setHError(`日期 ${hDate} 已有假日紀錄，請先刪除或改選其他日期`);
+      return;
+    }
+
+    const trimmedName = hName.trim() || '自訂假日';
+    // 導引面板新增者視為自訂假日；法定預設改由「恢復預設」載入
+    onAddHoliday({
+      date: hDate,
+      name: trimmedName,
+      isStatutory: false,
+      kind: 'original',
+    });
+
+    // 佔用＝既有假日＋剛新增原日；六／日則規劃補假（撞日自動遞延）
+    const occupied = [...nationalHolidays.map((h) => h.date), hDate];
+    const proposal = proposeMakeupDate(hDate, occupied);
+    if (proposal) {
+      setPendingMakeup({
+        proposal,
+        originalName: trimmedName,
+        isStatutory: false,
+      });
+    } else {
+      setPendingMakeup(null);
+    }
+
     setHDate('');
     setHName('');
+    setHError('');
+  };
+
+  /** 確認保留補假（含 substitutesFor，供審查替休／例）。 */
+  const handleAcceptMakeup = () => {
+    if (!pendingMakeup) return;
+    const { proposal, originalName, isStatutory } = pendingMakeup;
+    // 若期間清單又變了，依最新佔用再算一次遞延
+    const occupied = nationalHolidays.map((h) => h.date);
+    const fresh =
+      proposeMakeupDate(proposal.originalDate, occupied) ?? proposal;
+    if (!hasHolidayOnDate(nationalHolidays, fresh.makeupDate)) {
+      onAddHoliday(buildMakeupHolidayPayload(fresh, originalName, isStatutory));
+    }
+    setPendingMakeup(null);
+  };
+
+  /** 略過補假。 */
+  const handleSkipMakeup = () => {
+    setPendingMakeup(null);
+  };
+
+  /**
+   * 完成設定：若尚有未確認補假建議，警告並帶回步驟 1。
+   */
+  const handleCompleteSetup = () => {
+    if (pendingBatchVisible.length > 0) {
+      window.alert(
+        `尚有 ${pendingBatchVisible.length} 筆國定假日補假建議未確認。\n請先於上方清單勾選「確認保留」或「全部略過」後再完成設定。`
+      );
+      setCurrentStep(1);
+      return;
+    }
+    onCompleteSetup();
+  };
+
+  /**
+   * 刪除假日；原日若有關聯補假則詢問是否一併刪除。
+   * @param holiday 欲刪除之假日
+   */
+  const handleDeleteHoliday = (holiday: NationalHoliday) => {
+    if (holiday.kind === 'makeup') {
+      onDeleteHoliday(holiday.id);
+      if (pendingMakeup?.proposal.originalDate === holiday.sourceDate) {
+        setPendingMakeup(null);
+      }
+      return;
+    }
+
+    const linked = findMakeupHolidaysForSource(nationalHolidays, holiday.date);
+    if (linked.length > 0) {
+      const ok = window.confirm(
+        `「${holiday.name}」另有 ${linked.length} 筆關聯補假。\n是否一併刪除補假？\n\n按「確定」＝原日與補假皆刪；按「取消」＝僅刪原日、保留補假。`
+      );
+      if (ok) {
+        linked.forEach((m) => onDeleteHoliday(m.id));
+      }
+    }
+    onDeleteHoliday(holiday.id);
+
+    if (pendingMakeup?.proposal.originalDate === holiday.date) {
+      setPendingMakeup(null);
+    }
   };
 
   const handleAddShiftSubmit = (e: React.FormEvent) => {
@@ -135,10 +297,10 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
       breakHours: Number(sBreak) || 1,
       workHours: sCategory === 'work' ? Number(sHours) || 8 : 0,
       color: sColor,
-      textColor: '#FFFFFF',
+      // 依背景亮度寫入深／淺字色
+      textColor: getContrastingTextColor(sColor),
       category: sCategory,
-      isWorkShift: sCategory === 'work',
-    } as ShiftType);
+    });
     setSName('');
     setSCode('');
   };
@@ -151,7 +313,13 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
   const handleSaveEditShift = () => {
     if (!editingShiftId || !editShiftForm.code || !editShiftForm.name) return;
     if (onUpdateShiftType) {
-      onUpdateShiftType(editShiftForm as ShiftType);
+      const nextColor = editShiftForm.color || '#5A5A40';
+      // 儲存時重算對比字色，避免舊 textColor 與新背景不符
+      onUpdateShiftType({
+        ...(editShiftForm as ShiftType),
+        color: nextColor,
+        textColor: getContrastingTextColor(nextColor),
+      });
     }
     setEditingShiftId(null);
     setEditShiftForm({});
@@ -165,29 +333,39 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white border border-[#E9E7D4] rounded-2xl max-w-3xl w-full p-6 shadow-2xl text-[#2D2D2D] space-y-6 my-8 animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-stretch sm:items-center justify-center p-0 sm:p-4 overflow-hidden">
+      <div className="bg-white border-0 sm:border border-[#E9E7D4] rounded-none sm:rounded-2xl w-full sm:max-w-3xl h-[100dvh] sm:h-auto sm:max-h-[min(92dvh,900px)] shadow-2xl text-[#2D2D2D] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-[#E9E7D4] pb-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-[#5A5A40] text-white rounded-xl shadow-sm">
+        <div className="flex items-center justify-between border-b border-[#E9E7D4] pb-3 pt-4 px-4 sm:px-6 shrink-0">
+          <div className="flex items-center space-x-3 min-w-0">
+            <div className="p-2.5 bg-[#5A5A40] text-white rounded-xl shadow-sm shrink-0">
               <Sparkles className="w-5 h-5 text-amber-300" />
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-[#2D2D2D] font-serif">事業單位排班初始導引 Panel</h2>
-              <p className="text-xs text-[#8A8A70]">請透過 3 個簡單步驟完成基本設定（假日、班別代碼與同仁名單）</p>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-[#2D2D2D] font-serif truncate">事業單位排班初始導引 Panel</h2>
+              <p className="text-[11px] sm:text-xs text-[#8A8A70] line-clamp-2">請透過 3 個簡單步驟完成基本設定（假日、班別代碼與同仁名單）</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[#8A8A70] hover:text-[#2D2D2D] hover:bg-[#E9E7D4] transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-[#8A8A70] hover:text-[#2D2D2D] hover:bg-[#E9E7D4] transition-colors cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4 space-y-4 sm:space-y-6">
+        {/* 任何步驟皆顯示：初始化必檢補假（避免只在步驟1才看得到） */}
+        {pendingBatchVisible.length > 0 && (
+          <HolidayMakeupBatchConfirm
+            items={pendingBatchVisible}
+            onConfirm={handleBatchConfirm}
+            onSkipAll={handleBatchSkipAll}
+          />
+        )}
+
         {/* Step Indicator Bar */}
-        <div className="grid grid-cols-3 gap-2 bg-[#F8F7EB] p-2 rounded-xl border border-[#E9E7D4] text-xs font-bold">
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 bg-[#F8F7EB] p-1.5 sm:p-2 rounded-xl border border-[#E9E7D4] text-[10px] sm:text-xs font-bold">
           <button
             onClick={() => setCurrentStep(1)}
             className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg transition-all cursor-pointer ${
@@ -196,30 +374,30 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
                 : 'text-[#8A8A70] hover:bg-white hover:text-[#2D2D2D]'
             }`}
           >
-            <Sun className="w-4 h-4" />
-            <span>1. 國定與自訂假日</span>
+            <Sun className="w-4 h-4 shrink-0" />
+            <span className="truncate"><span className="sm:hidden">1. 假日</span><span className="hidden sm:inline">1. 國定與自訂假日</span></span>
           </button>
           <button
             onClick={() => setCurrentStep(2)}
-            className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center justify-center gap-1 sm:gap-2 py-2 px-1.5 sm:px-3 rounded-lg transition-all cursor-pointer ${
               currentStep === 2
                 ? 'bg-[#5A5A40] text-white shadow-sm'
                 : 'text-[#8A8A70] hover:bg-white hover:text-[#2D2D2D]'
             }`}
           >
-            <Layers className="w-4 h-4" />
-            <span>2. 班別代碼與工時</span>
+            <Layers className="w-4 h-4 shrink-0" />
+            <span className="truncate"><span className="sm:hidden">2. 班別</span><span className="hidden sm:inline">2. 班別代碼與工時</span></span>
           </button>
           <button
             onClick={() => setCurrentStep(3)}
-            className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center justify-center gap-1 sm:gap-2 py-2 px-1.5 sm:px-3 rounded-lg transition-all cursor-pointer ${
               currentStep === 3
                 ? 'bg-[#5A5A40] text-white shadow-sm'
                 : 'text-[#8A8A70] hover:bg-white hover:text-[#2D2D2D]'
             }`}
           >
-            <Users className="w-4 h-4" />
-            <span>3. 新增同仁名單</span>
+            <Users className="w-4 h-4 shrink-0" />
+            <span className="truncate"><span className="sm:hidden">3. 同仁</span><span className="hidden sm:inline">3. 新增同仁名單</span></span>
           </button>
         </div>
 
@@ -260,6 +438,18 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
                   <span>新增假日</span>
                 </button>
               </form>
+
+              {hError && <p className="text-xs text-[#D17A60]">{hError}</p>}
+
+              {/* 週末補假確認列 */}
+              {pendingMakeup && (
+                <HolidayMakeupConfirmBanner
+                  proposal={pendingMakeup.proposal}
+                  makeupName={buildMakeupHolidayName(pendingMakeup.originalName)}
+                  onAccept={handleAcceptMakeup}
+                  onSkip={handleSkipMakeup}
+                />
+              )}
             </div>
 
             {/* Holiday List & Quick Actions */}
@@ -269,7 +459,11 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
                 <div className="flex items-center space-x-3">
                   <button
                     type="button"
-                    onClick={onClearAllHolidays}
+                    onClick={() => {
+                      onClearAllHolidays();
+                      setPendingMakeup(null);
+                      setBatchSkippedSources(new Set());
+                    }}
                     className="text-[#D17A60] hover:underline flex items-center gap-1 text-[11px] cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -277,7 +471,12 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={onResetHolidays}
+                    onClick={() => {
+                      onResetHolidays();
+                      setPendingMakeup(null);
+                      // 重置後重新掃描補假建議
+                      setBatchSkippedSources(new Set());
+                    }}
                     className="text-[#8A8A70] hover:underline flex items-center gap-1 text-[11px] cursor-pointer"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
@@ -295,9 +494,19 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
                     <div>
                       <span className="font-mono font-bold text-[#5A5A40] mr-2">{h.date}</span>
                       <span className="text-[#2D2D2D]">{h.name}</span>
+                      {h.kind === 'makeup' && (
+                        <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#C46B4A]/15 text-[#C46B4A] border border-[#C46B4A]/25">
+                          調
+                          {h.substitutesFor === 'rest'
+                            ? '·替休'
+                            : h.substitutesFor === 'mandatory'
+                              ? '·替例'
+                              : ''}
+                        </span>
+                      )}
                     </div>
                     <button
-                      onClick={() => onDeleteHoliday(h.id)}
+                      onClick={() => handleDeleteHoliday(h)}
                       className="text-[#8A8A70] hover:text-[#D17A60] p-1 transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -489,7 +698,7 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
                           </div>
                         </div>
 
-                        {(editShiftForm.category === 'work' || editShiftForm.isWorkShift) && (
+                        {editShiftForm.category === 'work' && (
                           <div className="grid grid-cols-2 gap-2 pt-1">
                             <div>
                               <label className="block text-[10px] text-[#8A8A70] mb-0.5">上班時間</label>
@@ -553,17 +762,22 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
                       <div className="flex items-center space-x-2">
                         <span
                           className="px-2 py-0.5 rounded font-bold font-mono text-[11px]"
-                          style={{ backgroundColor: st.color, color: st.textColor || '#ffffff' }}
+                          style={{
+                            backgroundColor: st.color,
+                            color: getContrastingTextColor(st.color),
+                          }}
                         >
                           {st.code}
                         </span>
                         <span className="font-bold text-[#2D2D2D]">{st.name}</span>
                         <span className="text-[#8A8A70] text-[11px] font-mono flex items-center gap-1">
-                          {st.category === 'work' || st.isWorkShift ? (
+                          {st.category === 'work' ? (
                             <>
                               <Clock className="w-3 h-3 text-[#5A5A40]" />
                               <span>{st.startTime}~{st.endTime} ({st.workHours}H)</span>
                             </>
+                          ) : st.category === 'national_holiday_makeup' ? (
+                            '國定假日補假（調）'
                           ) : (
                             '非工作日/休假'
                           )}
@@ -580,7 +794,7 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
 
-                        {!['shift_rest', 'shift_mandatory', 'shift_national_holiday'].includes(st.id) && (
+                        {!(SYSTEM_PROTECTED_SHIFT_IDS as readonly string[]).includes(st.id) && (
                           <button
                             type="button"
                             onClick={() => onDeleteShiftType(st.id)}
@@ -700,14 +914,16 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
           </div>
         )}
 
-        {/* Modal Wizard Actions Footer */}
-        <div className="pt-4 border-t border-[#E9E7D4] flex items-center justify-between">
+        </div>
+
+        {/* Modal Wizard Actions Footer — 固定底部，避免小螢幕被裁切 */}
+        <div className="shrink-0 px-4 sm:px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-[#E9E7D4] flex items-center justify-between gap-2 bg-white">
           <div>
             {currentStep > 1 && (
               <button
                 type="button"
                 onClick={() => setCurrentStep((prev) => (prev - 1) as 1 | 2 | 3)}
-                className="px-4 py-2 border border-[#E9E7D4] bg-white hover:bg-[#F8F7EB] text-[#5A5A40] font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="px-3 sm:px-4 py-2 border border-[#E9E7D4] bg-white hover:bg-[#F8F7EB] text-[#5A5A40] font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>上一步</span>
@@ -720,7 +936,7 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
               <button
                 type="button"
                 onClick={() => setCurrentStep((prev) => (prev + 1) as 1 | 2 | 3)}
-                className="px-5 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                className="px-4 sm:px-5 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
               >
                 <span>下一步</span>
                 <ArrowRight className="w-4 h-4" />
@@ -728,16 +944,17 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
             ) : (
               <button
                 type="button"
-                onClick={onCompleteSetup}
+                onClick={handleCompleteSetup}
                 disabled={employees.length === 0}
-                className={`px-6 py-2.5 font-bold text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-md ${
+                className={`px-4 sm:px-6 py-2.5 font-bold text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-md ${
                   employees.length > 0
                     ? 'bg-[#4A7C59] hover:bg-[#3B6547] text-white'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
               >
                 <CheckCircle className="w-4 h-4" />
-                <span>完成設定，開啟排班 🚀</span>
+                <span className="sm:hidden">完成設定</span>
+                <span className="hidden sm:inline">完成設定，開啟排班 🚀</span>
               </button>
             )}
           </div>

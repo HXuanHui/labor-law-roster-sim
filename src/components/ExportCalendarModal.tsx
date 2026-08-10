@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Employee, ShiftType, NationalHoliday, ScheduleSystemType } from '../types';
 import { SYSTEM_CONFIGS } from '../constants/systems';
 import { getEffectiveShift, getShiftType } from '../utils/laborLaws';
+import { getContrastingTextColor } from '../utils/colorContrast';
 import {
   X,
   Printer,
@@ -25,16 +26,31 @@ import {
   getDaysInMonth
 } from 'date-fns';
 
+/**
+ * 匯出／列印行事曆 Modal 的屬性。
+ */
 interface ExportCalendarModalProps {
+  /** 是否開啟 Modal。 */
   isOpen: boolean;
+  /** 關閉 Modal 回呼。 */
   onClose: () => void;
+  /** 全部同仁清單。 */
   employees: Employee[];
+  /** 目前在主畫面選中的同仁 ID（用於預設檢視對象）。 */
   selectedEmployeeId: string;
+  /** 班別設定（含色塊與工時）。 */
   shiftTypes: ShiftType[];
+  /** 國定假日清單。 */
   nationalHolidays: NationalHoliday[];
+  /** 目前系統預設制度（保留相容）。 */
   currentSystem: ScheduleSystemType;
 }
 
+/**
+ * 匯出排班年曆／月曆，並透過瀏覽器列印或另存 PDF。
+ * @param props - Modal 屬性（開關狀態、同仁與班別資料）。
+ * @returns Modal 內容；關閉時回傳 null。
+ */
 export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
   isOpen,
   onClose,
@@ -50,14 +66,14 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
   const [targetEmployeeId, setTargetEmployeeId] = useState<string>(selectedEmployeeId || (employees[0]?.id || 'all'));
   const [showNotes, setShowNotes] = useState<boolean>(true);
 
-  if (!isOpen) return null;
-
-  // Selected target employees
+  // 必須在 early return 之前呼叫 hooks，避免開關 modal 時 hooks 數量不一致導致整頁崩潰
   const targetEmployees = useMemo(() => {
     if (targetEmployeeId === 'all') return employees;
     const found = employees.find((e) => e.id === targetEmployeeId);
     return found ? [found] : employees;
   }, [employees, targetEmployeeId]);
+
+  if (!isOpen) return null;
 
   const yearOptions = [2025, 2026, 2027, 2028];
   const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
@@ -65,7 +81,7 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
 
   // Helper to get shift styling & info for a date
   const getDayShiftInfo = (emp: Employee, dateStr: string) => {
-    const dayShift = getEffectiveShift(emp.schedules, dateStr);
+    const dayShift = getEffectiveShift(emp.schedules, dateStr, nationalHolidays);
     const shiftType = getShiftType(dayShift.shiftTypeId, shiftTypes);
     const isHoliday = nationalHolidays.some((h) => h.date === dateStr);
     const holidayObj = nationalHolidays.find((h) => h.date === dateStr);
@@ -98,10 +114,22 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
       cells.push({ dayNumber: d, dateStr });
     }
 
+    // 補滿 6 週（42 格），年曆各月卡片高度一致，利於 A4 單頁對齊
+    while (cells.length < 42) {
+      cells.push({ dayNumber: null, dateStr: null });
+    }
+
     return { startDayOfWeek, daysInM, cells };
   };
 
   // Compute month stats (off days & work days / hours) for a given employee & month
+  /**
+   * 統計指定月份工作／休假天數；空班（已清除排班）兩者皆不計入。
+   * @param emp 同仁
+   * @param year 西元年
+   * @param monthZeroBased 月份 0–11
+   * @returns 休假天、工作天與工時
+   */
   const getMonthStats = (emp: Employee, year: number, monthZeroBased: number) => {
     const daysInM = getDaysInMonth(new Date(year, monthZeroBased, 1));
     let offDays = 0;
@@ -111,13 +139,11 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
     for (let d = 1; d <= daysInM; d++) {
       const dateStr = format(new Date(year, monthZeroBased, d), 'yyyy-MM-dd');
       const { shiftType } = getDayShiftInfo(emp, dateStr);
-      if (shiftType) {
-        if (shiftType.category === 'work') {
-          workDays++;
-          workHours += shiftType.workHours;
-        } else {
-          offDays++;
-        }
+      // 無 ShiftType（含空班哨兵）＝未排班，不計工作日也不計休假日
+      if (!shiftType) continue;
+      if (shiftType.category === 'work') {
+        workDays++;
+        workHours += shiftType.workHours;
       } else {
         offDays++;
       }
@@ -126,13 +152,16 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
     return { offDays, workDays, workHours };
   };
 
+  /**
+   * 觸發瀏覽器原生列印對話框（可另存 PDF）。
+   */
   const handlePrint = () => {
     window.print();
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-white border border-[#E9E7D4] rounded-2xl w-full max-w-6xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden text-[#2D2D2D]">
+    <div className="export-print-root fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      <div className="export-print-sheet bg-white border border-[#E9E7D4] rounded-2xl w-full max-w-6xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden text-[#2D2D2D]">
         
         {/* Top Control Bar (Non-Printable) */}
         <div className="bg-[#F8F7EB] border-b border-[#E9E7D4] p-4 flex flex-col gap-3 no-print">
@@ -265,21 +294,26 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
         </div>
 
         {/* Scrollable Printable Calendar Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-[#FAF9F5] print:p-0 print:bg-white print:overflow-visible">
+        <div className="export-print-body flex-1 overflow-y-auto p-4 sm:p-6 bg-[#FAF9F5]">
           
-          {/* Loop per target employee */}
+          {/* Loop per target employee：每位同仁一頁，列印時依模式／說明縮放以貼合 A4 橫向 */}
           {targetEmployees.map((emp, empIdx) => (
             <div
               key={emp.id}
-              className={`space-y-6 ${empIdx > 0 ? 'mt-8 pt-8 border-t-2 border-[#E9E7D4] print:mt-0 print:pt-0 print:border-none print:break-before-page' : ''}`}
+              className={[
+                'export-print-page space-y-6',
+                exportScope === 'year' ? 'export-print-page--year' : 'export-print-page--month',
+                showNotes ? 'export-print-page--with-notes' : 'export-print-page--no-notes',
+                empIdx > 0 ? 'mt-8 pt-8 border-t-2 border-[#E9E7D4]' : '',
+              ].filter(Boolean).join(' ')}
             >
               {/* Printable Header */}
-              <div className="border-b-2 border-[#2D2D2D] pb-3 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-2">
+              <div className="export-print-header border-b-2 border-[#2D2D2D] pb-3 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-2">
                 <div>
-                  <h1 className="text-xl sm:text-2xl font-black font-serif text-[#2D2D2D] tracking-wide">
+                  <h1 className="export-print-title text-xl sm:text-2xl font-black font-serif text-[#2D2D2D] tracking-wide">
                     {selectedYear} 年 {exportScope === 'month' ? `${selectedMonth}月 ` : ''}排班行事曆
                   </h1>
-                  <p className="text-xs text-[#5A5A40] font-semibold mt-0.5">
+                  <p className="export-print-meta text-xs text-[#5A5A40] font-semibold mt-0.5">
                     姓名：<span className="font-bold text-[#2D2D2D] mr-3">{emp.name}</span>
                     職稱：<span className="font-bold text-[#2D2D2D] mr-3">{emp.role}</span>
                     部門：<span className="font-bold text-[#2D2D2D] mr-3">{emp.department || '醫療/行政'}</span>
@@ -287,7 +321,7 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                   </p>
                 </div>
 
-                <div className="text-right text-[11px] text-[#8A8A70]">
+                <div className="export-print-meta text-right text-[11px] text-[#8A8A70]">
                   <div>製表日期：{format(new Date(), 'yyyy/MM/dd')}</div>
                   <div className="font-mono text-[10px]">自訂班別色塊版</div>
                 </div>
@@ -295,7 +329,7 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
 
               {/* Reference Notes / Legend Box (matching image style) */}
               {showNotes && (
-                <div className="border border-[#2D2D2D] p-3 rounded-lg text-xs leading-relaxed space-y-1.5 bg-white print:bg-white text-[#2D2D2D]">
+                <div className="export-print-notes border border-[#2D2D2D] p-3 rounded-lg text-xs leading-relaxed space-y-1.5 bg-white text-[#2D2D2D]">
                   <div className="font-bold text-[#2D2D2D] flex items-center justify-between border-b border-gray-200 pb-1">
                     <span>1. 行政院休假放假與排班說明：</span>
                     <span className="text-[10px] text-[#8A8A70] font-normal">依《勞動基準法》與主管機關辦公日曆表</span>
@@ -313,8 +347,11 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                     {shiftTypes.map((st) => (
                       <span
                         key={st.id}
-                        className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold text-white border border-black/10 shadow-xs"
-                        style={{ backgroundColor: st.color, color: st.textColor || '#ffffff' }}
+                        className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border border-black/10 shadow-xs"
+                        style={{
+                          backgroundColor: st.color,
+                          color: getContrastingTextColor(st.color),
+                        }}
                       >
                         {st.code}：{st.name} ({st.workHours}H)
                       </span>
@@ -325,7 +362,7 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
 
               {/* Scope === 'year' (12 Months Layout Grid) */}
               {exportScope === 'year' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 print:grid-cols-3 print:gap-3">
+                <div className="export-print-year-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {Array.from({ length: 12 }, (_, mIdx) => {
                     const monthZeroBased = mIdx;
                     const monthNum = mIdx + 1;
@@ -335,17 +372,17 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                     return (
                       <div
                         key={monthNum}
-                        className="border-2 border-[#2D2D2D] rounded-xl bg-white overflow-hidden shadow-xs print:shadow-none flex flex-col justify-between"
+                        className="export-print-year-month border-2 border-[#2D2D2D] rounded-xl bg-white overflow-hidden shadow-xs flex flex-col justify-between"
                       >
                         {/* Month Header */}
-                        <div className="bg-[#5A5A40] text-white text-center py-1 font-bold text-xs font-serif border-b border-[#2D2D2D]">
+                        <div className="export-print-year-month-title bg-[#5A5A40] text-white text-center py-1 font-bold text-xs font-serif border-b border-[#2D2D2D]">
                           {selectedYear}年 {monthNum}月
                         </div>
 
                         {/* Calendar Grid */}
-                        <div className="p-1">
+                        <div className="export-print-year-month-body p-1 flex-1 flex flex-col min-h-0">
                           {/* Weekdays Header */}
-                          <div className="grid grid-cols-7 text-center font-bold text-[10px] text-[#2D2D2D] border-b border-gray-300 pb-0.5 mb-1">
+                          <div className="export-print-year-weekdays grid grid-cols-7 text-center font-bold text-[10px] text-[#2D2D2D] border-b border-gray-300 pb-0.5 mb-1">
                             {weekDayHeaders.map((dh, i) => (
                               <div
                                 key={i}
@@ -357,13 +394,13 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                           </div>
 
                           {/* Day Cells */}
-                          <div className="grid grid-cols-7 gap-0.5 text-center text-[10px]">
+                          <div className="export-print-year-days grid grid-cols-7 gap-0.5 text-center text-[10px] flex-1 min-h-0">
                             {cells.map((cell, cIdx) => {
                               if (!cell.dayNumber || !cell.dateStr) {
-                                return <div key={cIdx} className="h-6 bg-gray-50/50 rounded-xs" />;
+                                return <div key={cIdx} className="export-print-year-day h-6 bg-gray-50/50 rounded-xs" />;
                               }
 
-                              const { shiftType, isHoliday } = getDayShiftInfo(emp, cell.dateStr);
+                              const { shiftType } = getDayShiftInfo(emp, cell.dateStr);
 
                               // Determine background color using shiftType's color or category default
                               let bgStyle: React.CSSProperties = { backgroundColor: '#ffffff', color: '#2D2D2D' };
@@ -371,23 +408,20 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                               if (shiftType) {
                                 bgStyle = {
                                   backgroundColor: shiftType.color,
-                                  color: shiftType.textColor || '#ffffff',
+                                  color: getContrastingTextColor(shiftType.color),
                                 };
                               }
-
-                              const isSun = cIdx % 7 === 0;
-                              const isSat = cIdx % 7 === 6;
 
                               return (
                                 <div
                                   key={cIdx}
-                                  className="h-6 flex flex-col items-center justify-center rounded-xs font-mono font-bold border border-black/10 relative overflow-hidden"
+                                  className="export-print-year-day h-6 flex flex-col items-center justify-center rounded-xs font-mono font-bold border border-black/10 relative overflow-hidden"
                                   style={bgStyle}
                                   title={`${cell.dateStr} - ${shiftType?.name || '休'}`}
                                 >
-                                  <span className="leading-none text-[10px]">{cell.dayNumber}</span>
+                                  <span className="export-print-year-day-num leading-none text-[10px]">{cell.dayNumber}</span>
                                   {shiftType && (
-                                    <span className="text-[8px] opacity-90 leading-none mt-0.5 scale-90">
+                                    <span className="export-print-year-day-code text-[8px] opacity-90 leading-none mt-0.5 scale-90">
                                       {shiftType.code}
                                     </span>
                                   )}
@@ -398,9 +432,9 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                         </div>
 
                         {/* Month Summary Footer */}
-                        <div className="border-t border-[#2D2D2D] bg-[#F8F7EB] px-2 py-1 flex items-center justify-between text-[10px] font-bold text-[#2D2D2D]">
+                        <div className="export-print-year-footer border-t border-[#2D2D2D] bg-[#F8F7EB] px-2 py-1 flex items-center justify-between text-[10px] font-bold text-[#2D2D2D]">
                           <span>休假日：<strong className="text-[#D17A60]">{stats.offDays}</strong> 天</span>
-                          <span>工作/開診：<strong className="text-[#5A5A40]">{stats.workDays}</strong> 天 ({stats.workHours}H)</span>
+                          <span>工作：<strong className="text-[#5A5A40]">{stats.workDays}</strong> 天 ({stats.workHours}H)</span>
                         </div>
                       </div>
                     );
@@ -410,17 +444,17 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
 
               {/* Scope === 'month' (Single Month View) */}
               {exportScope === 'month' && (
-                <div className="border-2 border-[#2D2D2D] rounded-2xl bg-white overflow-hidden shadow-sm">
+                <div className="export-print-month-view border-2 border-[#2D2D2D] rounded-2xl bg-white overflow-hidden shadow-sm flex flex-col min-h-0">
                   {/* Single Month Header */}
-                  <div className="bg-[#5A5A40] text-white p-3 font-bold text-base font-serif flex items-center justify-between">
+                  <div className="export-print-month-title bg-[#5A5A40] text-white p-3 font-bold text-base font-serif flex items-center justify-between">
                     <span>{selectedYear}年 {selectedMonth}月 排班月曆表</span>
-                    <span className="text-xs font-mono font-normal opacity-90">
+                    <span className="export-print-month-stats text-xs font-mono font-normal opacity-90">
                       當月統計：休假日 {getMonthStats(emp, selectedYear, selectedMonth - 1).offDays} 天 | 工作日 {getMonthStats(emp, selectedYear, selectedMonth - 1).workDays} 天 ({getMonthStats(emp, selectedYear, selectedMonth - 1).workHours} 小時)
                     </span>
                   </div>
 
                   {/* Large Grid Header */}
-                  <div className="grid grid-cols-7 text-center font-bold text-xs bg-[#F8F7EB] border-b-2 border-[#2D2D2D] py-2">
+                  <div className="export-print-month-weekdays grid grid-cols-7 text-center font-bold text-xs bg-[#F8F7EB] border-b-2 border-[#2D2D2D] py-2">
                     {weekDayHeaders.map((dh, i) => (
                       <div
                         key={i}
@@ -431,24 +465,24 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                     ))}
                   </div>
 
-                  {/* Large Day Cells */}
-                  <div className="grid grid-cols-7 border-b border-gray-300">
+                  {/* Large Day Cells：6 週固定列，列印時均分剩餘 A4 高度 */}
+                  <div className="export-print-month-days grid grid-cols-7 grid-rows-6 border-b border-gray-300 flex-1 min-h-0">
                     {getMonthMatrix(selectedYear, selectedMonth - 1).cells.map((cell, cIdx) => {
                       if (!cell.dayNumber || !cell.dateStr) {
-                        return <div key={cIdx} className="min-h-[72px] bg-gray-50 border-r border-b border-gray-200" />;
+                        return <div key={cIdx} className="export-print-month-day min-h-[72px] bg-gray-50 border-r border-b border-gray-200" />;
                       }
 
-                      const { dayShift, shiftType, isHoliday, holidayObj } = getDayShiftInfo(emp, cell.dateStr);
+                      const { shiftType, isHoliday, holidayObj } = getDayShiftInfo(emp, cell.dateStr);
 
                       return (
                         <div
                           key={cIdx}
-                          className="min-h-[72px] p-1.5 border-r border-b border-gray-300 flex flex-col justify-between hover:bg-gray-50 transition-colors"
+                          className="export-print-month-day min-h-[72px] p-1.5 border-r border-b border-gray-300 flex flex-col justify-between hover:bg-gray-50 transition-colors"
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold font-mono text-sm text-[#2D2D2D]">{cell.dayNumber}</span>
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="export-print-month-day-num font-bold font-mono text-sm text-[#2D2D2D]">{cell.dayNumber}</span>
                             {isHoliday && (
-                              <span className="text-[9px] bg-[#D17A60] text-white px-1 rounded font-bold">
+                              <span className="export-print-month-holiday text-[9px] bg-[#D17A60] text-white px-1 rounded font-bold truncate">
                                 {holidayObj?.name || '國定假'}
                               </span>
                             )}
@@ -456,12 +490,15 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
 
                           {shiftType ? (
                             <div
-                              className="p-1 rounded-lg text-xs font-bold text-center mt-1 border border-black/10 shadow-xs"
-                              style={{ backgroundColor: shiftType.color, color: shiftType.textColor || '#ffffff' }}
+                              className="export-print-month-shift p-1 rounded-lg text-xs font-bold text-center mt-1 border border-black/10 shadow-xs"
+                              style={{
+                                backgroundColor: shiftType.color,
+                                color: getContrastingTextColor(shiftType.color),
+                              }}
                             >
-                              <div className="flex items-center justify-between px-0.5">
+                              <div className="flex items-center justify-between px-0.5 gap-1">
                                 <span className="text-[10px]">{shiftType.code}</span>
-                                <span>{shiftType.name}</span>
+                                <span className="truncate">{shiftType.name}</span>
                               </div>
                               <div className="text-[9px] opacity-80 text-right mt-0.5">
                                 {shiftType.workHours > 0 ? `${shiftType.workHours}H` : '例休'}

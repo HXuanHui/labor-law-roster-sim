@@ -8,16 +8,50 @@ export interface ShiftType {
   endTime: string; // e.g. "18:00"
   workHours: number; // e.g. 8 or 10
   breakHours: number; // e.g. 1
-  color: string; // Tailwind background color class or hex
+  /** 班別背景色（hex）。 */
+  color: string;
+  /**
+   * 文字色（#FFFFFF 或 #2D2D2D）。
+   * 畫面多依背景即時計算；此欄供持久化／匯出相容。
+   */
   textColor: string;
-  category: 'work' | 'rest' | 'mandatory' | 'national_holiday';
+  /**
+   * 班別類別。
+   * national_holiday_makeup＝國定假日補假「調」：計薪視同國假，審查時可依 substitutesFor 計入休／例配額。
+   */
+  category: 'work' | 'rest' | 'mandatory' | 'national_holiday' | 'national_holiday_makeup';
 }
 
 export interface DayShift {
-  date: string; // YYYY-MM-DD
+  /** 日期 YYYY-MM-DD。 */
+  date: string;
+  /** 套用之班別 ID。 */
   shiftTypeId: string;
+  /** 備註。 */
   note?: string;
+  /** 是否含加班（相容欄位；以 overtimeHours > 0 為準）。 */
   isOvertime?: boolean;
+  /** 當日延長工時時數（小時），以模擬步進累加。 */
+  overtimeHours?: number;
+  /**
+   * 當日已使用之補休時數（小時）。
+   * 自本月加班庫存扣抵，顯示工時 = 正常＋加班−補休。
+   */
+  compLeaveHours?: number;
+  /**
+   * 「調」班手動／補假所替補之休／例配額。
+   * 審查優先讀此欄；與 NationalHoliday.substitutesFor 同步寫入。
+   */
+  makeupSubstitutesFor?: 'rest' | 'mandatory';
+  /**
+   * 「調」班對應之原國定假日日期（畫面上的「國」班日）。
+   */
+  makeupSourceDate?: string;
+  /**
+   * @deprecated 改以加班庫存＋補休時數處理；保留相容。
+   */
+  overtimeSettlement?: 'pay' | 'comp_leave';
+  /** 是否釘選鎖定。 */
   isPinned?: boolean;
 }
 
@@ -31,23 +65,55 @@ export interface Employee {
   schedules: Record<string, DayShift>; // key: YYYY-MM-DD
 }
 
+/**
+ * 國定／自訂放假日。
+ * 逢星期六、日新增時可由系統建議產生補假日（kind = makeup）。
+ */
 export interface NationalHoliday {
+  /** 假日識別碼。 */
   id: string;
-  date: string; // YYYY-MM-DD
+  /** 放假日期 YYYY-MM-DD。 */
+  date: string;
+  /** 顯示名稱。 */
   name: string;
-  isStatutory: boolean; // True if statutory Taiwan national holiday
+  /** 是否為法定國定假日（相對公司自訂假日）。 */
+  isStatutory: boolean;
+  /** 補充說明。 */
   description?: string;
+  /**
+   * 假日種類：原日或週末挪移之補假；未填視為原日（相容舊資料）。
+   */
+  kind?: 'original' | 'makeup';
+  /**
+   * 補假所對應之原國定假日日期 YYYY-MM-DD。
+   * 僅 kind = makeup 時有意義。
+   */
+  sourceDate?: string;
+  /**
+   * 補假在審查時要替補的例／休配額。
+   * 原日為六 → rest；原日為日 → mandatory（因國假班覆寫週末的休／例）。
+   */
+  substitutesFor?: 'rest' | 'mandatory';
 }
 
-export interface LaborRuleViolation {
-  type: 'consecutive_work' | 'insufficient_mandatory_off' | 'insufficient_rest_day' | 'exceed_max_hours' | 'shift_interval_insufficient' | 'daily_hours_exceeded';
+export type LaborRuleViolation = {
+  type:
+    | 'consecutive_work'
+    | 'insufficient_mandatory_off'
+    | 'insufficient_rest_day'
+    | 'exceed_max_hours'
+    | 'shift_interval_insufficient'
+    | 'daily_hours_exceeded'
+    | 'monthly_overtime_exceeded'
+    | 'weekly_hours_exceeded'
+    | 'cycle_overtime_exceeded';
   severity: 'error' | 'warning';
   article: string; // e.g. "勞基法第36條"
   title: string;
   message: string;
   dates?: string[];
   affectedEmployeeId?: string;
-}
+};
 
 export interface SnapResult {
   allowed: boolean;

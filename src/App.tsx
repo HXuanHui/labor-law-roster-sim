@@ -8,10 +8,24 @@ import {
   ShiftType,
   SnapResult,
 } from './types';
-import { DEFAULT_SHIFTS } from './constants/shifts';
+import { DEFAULT_SHIFTS, EMPTY_SHIFT_TYPE_ID, ensureDefaultShifts, resolveHolidayShiftTypeId } from './constants/shifts';
 import { SYSTEM_CONFIGS } from './constants/systems';
+import {
+  getMaxDailyOvertimeHours,
+  snapOvertimeHours,
+  OVERTIME_STEP_HOURS,
+} from './constants/overtime';
 import { INITIAL_TAIWAN_HOLIDAYS } from './constants/taiwanHolidays';
-import { checkCompliance, findNearestLegalDate, getEffectiveShift, getShiftType, isWorkShift, getCycleInfoForDate } from './utils/laborLaws';
+import {
+  checkCompliance,
+  countsTowardMandatoryOff,
+  countsTowardRestDay,
+  findNearestLegalDate,
+  getEffectiveShift,
+  getShiftType,
+  isWorkShift,
+  getCycleInfoForDate,
+} from './utils/laborLaws';
 import { Header } from './components/Header';
 import { SystemSelectorBar } from './components/SystemSelectorBar';
 import { CalendarMonthView } from './components/CalendarMonthView';
@@ -23,7 +37,12 @@ import { EmployeeSettingsModal } from './components/EmployeeSettingsModal';
 import { SetupWizardModal } from './components/SetupWizardModal';
 import { UserGuideModal } from './components/UserGuideModal';
 import { ExportCalendarModal } from './components/ExportCalendarModal';
-import { Calendar, LayoutGrid, Users, Plus, ShieldCheck, Download, AlertTriangle, Sparkles, BookOpen, Trash2, Printer } from 'lucide-react';
+import {
+  collectNationalShiftCandidates,
+  MakeupSourcePickerModal,
+} from './components/MakeupSourcePickerModal';
+import { buildMakeupHolidayName } from './utils/holidayMakeup';
+import { Calendar, LayoutGrid, Sparkles } from 'lucide-react';
 import { addDays, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
 
 export default function App() {
@@ -32,6 +51,10 @@ export default function App() {
   const [currentMonth, setCurrentMonth] = useState(today.getMonth() + 1);
   const [currentSystem, setCurrentSystem] = useState<ScheduleSystemType>('2-week');
   const [viewMode, setViewMode] = useState<'month' | 'timeline'>('month');
+  /** 矩陣檢視捲動起始日（可與月曆當月 1 日不同，支援前／後 N 天） */
+  const [timelineStartDateStr, setTimelineStartDateStr] = useState(() =>
+    format(new Date(today.getFullYear(), today.getMonth(), 1), 'yyyy-MM-dd')
+  );
 
   // Modals state
   const [isHolidaysModalOpen, setIsHolidaysModalOpen] = useState(false);
@@ -56,7 +79,8 @@ export default function App() {
   // Data states with LocalStorage persistence
   const [shiftTypes, setShiftTypes] = useState<ShiftType[]>(() => {
     const saved = localStorage.getItem('perpetual_shifts');
-    return saved ? JSON.parse(saved) : DEFAULT_SHIFTS;
+    // 合併內建班別，確保舊資料也能取得新增的「調」班
+    return ensureDefaultShifts(saved ? JSON.parse(saved) : DEFAULT_SHIFTS);
   });
 
   const [nationalHolidays, setNationalHolidays] = useState<NationalHoliday[]>(() => {
@@ -80,6 +104,13 @@ export default function App() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(employees[0]?.id || '');
   const [highlightDates, setHighlightDates] = useState<string[]>([]);
   const [snappedFeedback, setSnappedFeedback] = useState<SnapResult | null>(null);
+  /**
+   * 手動套用「調」時的待確認上下文（需指定畫面上哪個「國」班）。
+   */
+  const [makeupPick, setMakeupPick] = useState<{
+    empId: string;
+    targetDates: string[];
+  } | null>(null);
 
   // Sync selected employee id when employees change
   useEffect(() => {
@@ -170,10 +201,26 @@ export default function App() {
     setHighlightDates((prev) => prev.filter((d) => activeViolationDates.has(d)));
   }, [violations]);
 
-  // Calculate statistics for active employee in current cycle
-  const { totalWorkHours, maxConsecutiveDays, mandatoryOffCount, restDayCount, nationalHolidayWorkCount } = useMemo(() => {
+  // Calculate statistics for active employee in current cycle / month
+  const {
+    totalWorkHours,
+    totalOvertimeHours,
+    maxConsecutiveDays,
+    mandatoryOffCount,
+    restDayCount,
+    nationalHolidayWorkCount,
+    compLeaveBankHours,
+  } = useMemo(() => {
     if (!selectedEmployee) {
-      return { totalWorkHours: 0, maxConsecutiveDays: 0, mandatoryOffCount: 0, restDayCount: 0, nationalHolidayWorkCount: 0 };
+      return {
+        totalWorkHours: 0,
+        totalOvertimeHours: 0,
+        maxConsecutiveDays: 0,
+        mandatoryOffCount: 0,
+        restDayCount: 0,
+        nationalHolidayWorkCount: 0,
+        compLeaveBankHours: 0,
+      };
     }
 
     const system = currentSystem || selectedEmployee.scheduleSystem || '2-week';
@@ -182,16 +229,14 @@ export default function App() {
     const start = parseISO(monthStartDateStr);
     const end = parseISO(monthEndDateStr);
 
-    // Reference date: today if in current month view, otherwise start of current month view
     const todayStr = format(new Date(), 'yyyy-MM-dd');
-    const refDateStr = (todayStr >= monthStartDateStr && todayStr <= monthEndDateStr)
-      ? todayStr
-      : monthStartDateStr;
+    const refDateStr =
+      todayStr >= monthStartDateStr && todayStr <= monthEndDateStr
+        ? todayStr
+        : monthStartDateStr;
 
-    // Get the exact cycle range for the reference date
     const refCycle = getCycleInfoForDate(refDateStr, cycleDays, selectedEmployee.cycleStartDate);
 
-    // Calculate work hours, mandatory off days, rest days, national holiday work days for this cycle
     let hours = 0;
     let mandatory = 0;
     let rest = 0;
@@ -200,7 +245,7 @@ export default function App() {
     for (let i = 0; i < cycleDays; i++) {
       const cDate = addDays(refCycle.cStart, i);
       const dStr = format(cDate, 'yyyy-MM-dd');
-      const dayShift = getEffectiveShift(selectedEmployee.schedules, dStr);
+      const dayShift = getEffectiveShift(selectedEmployee.schedules, dStr, nationalHolidays);
       const shiftType = getShiftType(dayShift.shiftTypeId, shiftTypes);
       const isNat = nationalHolidays.some((h) => h.date === dStr);
 
@@ -208,22 +253,28 @@ export default function App() {
         if (shiftType.category === 'work') {
           hours += shiftType.workHours;
           if (isNat) natWork++;
-        } else if (shiftType.category === 'mandatory') {
+        } else if (countsTowardMandatoryOff(shiftType.category, dStr, nationalHolidays, selectedEmployee.schedules)) {
           mandatory++;
-        } else if (shiftType.category === 'rest') {
+        } else if (countsTowardRestDay(shiftType.category, dStr, nationalHolidays, selectedEmployee.schedules)) {
           rest++;
         }
       }
     }
 
-    // Calculate max consecutive work days across the month view range
+    let monthOt = 0;
+    let monthCompLeave = 0;
+    let d = start;
     let curConsecutive = 0;
     let maxConsecutive = 0;
-    let d = start;
+
     while (d <= end) {
       const dStr = format(d, 'yyyy-MM-dd');
-      const dayShift = getEffectiveShift(selectedEmployee.schedules, dStr);
+      const dayShift = getEffectiveShift(selectedEmployee.schedules, dStr, nationalHolidays);
       const shiftType = getShiftType(dayShift.shiftTypeId, shiftTypes);
+      const stored = selectedEmployee.schedules[dStr];
+
+      if (stored?.overtimeHours) monthOt += stored.overtimeHours;
+      if (stored?.compLeaveHours) monthCompLeave += stored.compLeaveHours;
 
       if (shiftType && shiftType.category === 'work') {
         curConsecutive++;
@@ -235,26 +286,52 @@ export default function App() {
       d = addDays(d, 1);
     }
 
+    monthOt = Math.round(monthOt * 10) / 10;
+    monthCompLeave = Math.round(monthCompLeave * 10) / 10;
+
     return {
       totalWorkHours: hours,
+      totalOvertimeHours: monthOt,
       maxConsecutiveDays: maxConsecutive,
       mandatoryOffCount: mandatory,
       restDayCount: rest,
       nationalHolidayWorkCount: natWork,
+      compLeaveBankHours: Math.max(0, Math.round((monthOt - monthCompLeave) * 10) / 10),
     };
   }, [selectedEmployee, currentSystem, monthStartDateStr, monthEndDateStr, shiftTypes, nationalHolidays]);
 
-  // Handle single shift change
+  /**
+   * 單日改班：釘選日略過；「空」寫入哨兵以清除排班（不可 delete，否則會回填六休七例）。
+   * 套用「國」時若假日清單尚無該日，一併補登記，方便之後「調」可對應畫面上國班。
+   * @param empId 同仁 ID
+   * @param dateStr 日期
+   * @param shiftTypeId 目標班別；EMPTY_SHIFT_TYPE_ID 表示清除
+   */
   const handleSelectShift = (empId: string, dateStr: string, shiftTypeId: string) => {
+    // 「調」必須經挑選來源「國」班，不可直接寫入
+    if (shiftTypeId === 'shift_national_holiday_makeup') {
+      setMakeupPick({ empId, targetDates: [dateStr] });
+      return;
+    }
+
     setEmployees((prev) =>
       prev.map((e) => {
         if (e.id !== empId) return e;
-        if (e.schedules[dateStr]?.isPinned) return e; // Lock pinned shift from being overwritten
+        if (e.schedules[dateStr]?.isPinned) return e;
         const newSched = { ...e.schedules };
-        if (shiftTypeId === 'shift_empty') {
-          delete newSched[dateStr];
+        // 空班＝刪除當天排班本體；保留鍵值以免 getEffectiveShift 回填休／例／早班
+        if (shiftTypeId === EMPTY_SHIFT_TYPE_ID) {
+          newSched[dateStr] = { date: dateStr, shiftTypeId: EMPTY_SHIFT_TYPE_ID };
         } else {
-          newSched[dateStr] = { date: dateStr, shiftTypeId };
+          // 清掉舊的調班對應欄位，避免換成其他班別後仍殘留替休標記
+          newSched[dateStr] = {
+            date: dateStr,
+            shiftTypeId,
+            note: e.schedules[dateStr]?.note,
+            overtimeHours: e.schedules[dateStr]?.overtimeHours,
+            compLeaveHours: e.schedules[dateStr]?.compLeaveHours,
+            isPinned: e.schedules[dateStr]?.isPinned,
+          };
         }
         return {
           ...e,
@@ -262,9 +339,296 @@ export default function App() {
         };
       })
     );
+
+    // 手動排「國」：同步補登記假日清單（無則新增），讓之後選「調」能對到
+    if (shiftTypeId === 'shift_national_holiday') {
+      setNationalHolidays((prev) => {
+        if (prev.some((h) => h.date === dateStr)) return prev;
+        return [
+          ...prev,
+          {
+            id: `hol_custom_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            date: dateStr,
+            name: '國定假日（手動排班）',
+            isStatutory: false,
+            kind: 'original',
+          },
+        ];
+      });
+    }
+  };
+
+  /**
+   * 手動「調」：依選定的畫面上「國」班寫入替休／例標記，並同步假日清單。
+   * @param sourceDate 來源「國」班日期
+   * @param substitutesFor 審查計入休息日或例假日
+   */
+  const handleConfirmMakeupLink = (
+    sourceDate: string,
+    substitutesFor: 'rest' | 'mandatory'
+  ) => {
+    if (!makeupPick) return;
+    const { empId, targetDates } = makeupPick;
+    // 一對一：單一來源國假對應一個補假日（多選時取第一個未釘選目標）
+    const targetDate = targetDates[0];
+    if (!targetDate) {
+      setMakeupPick(null);
+      return;
+    }
+
+    const emp = employees.find((e) => e.id === empId);
+    const sourceLabel =
+      nationalHolidays.find((h) => h.date === sourceDate && h.kind !== 'makeup')?.name ||
+      '國定假日';
+
+    setNationalHolidays((prev) => {
+      let next = [...prev];
+      // 來源日若尚不在清單（僅有班表「國」），補上原日記錄
+      if (!next.some((h) => h.date === sourceDate && h.kind !== 'makeup')) {
+        next.push({
+          id: `hol_custom_${Date.now()}_src_${Math.random().toString(36).slice(2, 7)}`,
+          date: sourceDate,
+          name: sourceLabel === '國定假日' ? '國定假日（手動排班）' : sourceLabel,
+          isStatutory: false,
+          kind: 'original',
+        });
+      }
+      // 目標日既有補假列先移除再寫入，避免重複
+      next = next.filter((h) => !(h.date === targetDate && h.kind === 'makeup'));
+      next.push({
+        id: `hol_custom_${Date.now()}_mk_${Math.random().toString(36).slice(2, 7)}`,
+        date: targetDate,
+        name: buildMakeupHolidayName(sourceLabel),
+        isStatutory: false,
+        kind: 'makeup',
+        sourceDate,
+        substitutesFor,
+      });
+      return next;
+    });
+
+    // 班表寫入「調」＋替補標記（審查優先讀此欄）
+    if (!emp?.schedules[targetDate]?.isPinned) {
+      setEmployees((prev) =>
+        prev.map((e) => {
+          if (e.id !== empId) return e;
+          return {
+            ...e,
+            schedules: {
+              ...e.schedules,
+              [targetDate]: {
+                date: targetDate,
+                shiftTypeId: 'shift_national_holiday_makeup',
+                makeupSubstitutesFor: substitutesFor,
+                makeupSourceDate: sourceDate,
+              },
+            },
+          };
+        })
+      );
+    }
+
+    setMakeupPick(null);
+  };
+
+  /** 取消手動調班來源挑選。 */
+  const handleCancelMakeupLink = () => setMakeupPick(null);
+
+  /**
+   * 加減當日延長工時（步進 0.5H）；無紀錄時先實體化預設班別。
+   * 負向變動＝取消加班，檢核表「延長工時」會同步下降。
+   * @param empId 同仁 ID
+   * @param dateStr 日期
+   * @param deltaHours 變動量
+   */
+  const handleAdjustOvertime = (empId: string, dateStr: string, deltaHours: number) => {
+    setEmployees((prev) =>
+      prev.map((e) => {
+        if (e.id !== empId) return e;
+        const existing = e.schedules[dateStr];
+        if (existing?.isPinned) return e;
+
+        const current = existing ?? getEffectiveShift(e.schedules, dateStr, nationalHolidays);
+        const st = shiftTypes.find((s) => s.id === current.shiftTypeId);
+        if (!st || st.category !== 'work') return e;
+
+        const maxOt = getMaxDailyOvertimeHours(st.workHours);
+        // 下限 0：取消加班不可變成負數
+        const next = snapOvertimeHours((current.overtimeHours || 0) + deltaHours);
+        const capped = Math.min(maxOt, Math.max(0, next));
+
+        return {
+          ...e,
+          schedules: {
+            ...e.schedules,
+            [dateStr]: {
+              ...current,
+              date: dateStr,
+              overtimeHours: capped > 0 ? capped : undefined,
+              isOvertime: capped > 0,
+              compLeaveHours: current.compLeaveHours,
+            },
+          },
+        };
+      })
+    );
+  };
+
+  /**
+   * 直接設定當日顯示總工時（正常＋延長−補休）。
+   * 大於班別正常時數 → 登錄延長；小於 → 支用補休（受本月加班庫存與單日 12H 上限約束）。
+   * @param empId 同仁 ID
+   * @param dateStr 日期
+   * @param targetDisplayHours 目標顯示時數
+   */
+  const handleSetDayDisplayHours = (
+    empId: string,
+    dateStr: string,
+    targetDisplayHours: number
+  ) => {
+    setEmployees((prev) =>
+      prev.map((e) => {
+        if (e.id !== empId) return e;
+        const existing = e.schedules[dateStr];
+        if (existing?.isPinned) return e;
+
+        const current = existing ?? getEffectiveShift(e.schedules, dateStr, nationalHolidays);
+        const st = shiftTypes.find((s) => s.id === current.shiftTypeId);
+        if (!st || st.category !== 'work') return e;
+
+        const base = st.workHours;
+        const maxOt = getMaxDailyOvertimeHours(base);
+        const currentOt = current.overtimeHours || 0;
+        const currentComp = current.compLeaveHours || 0;
+
+        // 本月其他日加班／補休（排除當日，以便重算庫存）
+        const monthStart = format(startOfMonth(parseISO(dateStr)), 'yyyy-MM-dd');
+        const monthEnd = format(endOfMonth(parseISO(dateStr)), 'yyyy-MM-dd');
+        let otherOt = 0;
+        let otherUsed = 0;
+        Object.values(e.schedules).forEach((ds) => {
+          if (ds.date < monthStart || ds.date > monthEnd || ds.date === dateStr) return;
+          otherOt += ds.overtimeHours || 0;
+          otherUsed += ds.compLeaveHours || 0;
+        });
+
+        const snappedTarget = snapOvertimeHours(Math.max(0, targetDisplayHours));
+        let nextOt = 0;
+        let nextComp = 0;
+
+        if (snappedTarget >= base) {
+          // 高於正常班：記入延長工時，清除當日補休
+          nextOt = snapOvertimeHours(Math.min(maxOt, snappedTarget - base));
+          nextComp = 0;
+        } else {
+          // 低於正常班：取消當日延長，再依庫存支用補休
+          nextOt = 0;
+          const wantComp = snapOvertimeHours(base - snappedTarget);
+          const bank = Math.round((otherOt - otherUsed) * 10) / 10;
+          nextComp = snapOvertimeHours(Math.min(wantComp, Math.max(0, bank), base));
+        }
+
+        if (nextOt === currentOt && nextComp === currentComp) return e;
+
+        return {
+          ...e,
+          schedules: {
+            ...e.schedules,
+            [dateStr]: {
+              ...current,
+              date: dateStr,
+              overtimeHours: nextOt > 0 ? nextOt : undefined,
+              isOvertime: nextOt > 0,
+              compLeaveHours: nextComp > 0 ? nextComp : undefined,
+            },
+          },
+        };
+      })
+    );
+  };
+
+  /**
+   * 支用或還原補休。
+   * 正值：自本月加班庫存扣抵並縮短當日顯示工時；負值：還原補休（庫存加回）。
+   * 延長工時總量不變（仍登錄原本加班），僅改變補休庫存與當日顯示。
+   * @param empId 同仁 ID
+   * @param dateStr 日期
+   * @param deltaHours 變動量（預設一步進＝支用）
+   */
+  const handleTakeCompLeave = (
+    empId: string,
+    dateStr: string,
+    deltaHours: number = OVERTIME_STEP_HOURS
+  ) => {
+    if (deltaHours === 0) return;
+
+    setEmployees((prev) =>
+      prev.map((e) => {
+        if (e.id !== empId) return e;
+
+        const existing = e.schedules[dateStr];
+        if (existing?.isPinned) return e;
+        const current = existing ?? getEffectiveShift(e.schedules, dateStr, nationalHolidays);
+        const st = shiftTypes.find((s) => s.id === current.shiftTypeId);
+        if (!st || st.category !== 'work') return e;
+
+        const used = current.compLeaveHours || 0;
+
+        // --- 還原補休 ---
+        if (deltaHours < 0) {
+          const nextUsed = snapOvertimeHours(Math.max(0, used + deltaHours));
+          if (nextUsed === used) return e;
+          return {
+            ...e,
+            schedules: {
+              ...e.schedules,
+              [dateStr]: {
+                ...current,
+                date: dateStr,
+                compLeaveHours: nextUsed > 0 ? nextUsed : undefined,
+              },
+            },
+          };
+        }
+
+        // --- 支用補休：需有庫存，且當日尚可再扣 ---
+        const monthStart = format(startOfMonth(parseISO(dateStr)), 'yyyy-MM-dd');
+        const monthEnd = format(endOfMonth(parseISO(dateStr)), 'yyyy-MM-dd');
+        let monthOt = 0;
+        let monthUsed = 0;
+        Object.values(e.schedules).forEach((ds) => {
+          if (ds.date >= monthStart && ds.date <= monthEnd) {
+            monthOt += ds.overtimeHours || 0;
+            monthUsed += ds.compLeaveHours || 0;
+          }
+        });
+        const bank = Math.round((monthOt - monthUsed) * 10) / 10;
+        if (bank < deltaHours) return e;
+        if (st.workHours - used < deltaHours) return e;
+
+        const nextUsed = snapOvertimeHours(used + deltaHours);
+        return {
+          ...e,
+          schedules: {
+            ...e.schedules,
+            [dateStr]: {
+              ...current,
+              date: dateStr,
+              compLeaveHours: nextUsed > 0 ? nextUsed : undefined,
+            },
+          },
+        };
+      })
+    );
   };
 
   // Handle toggle pinning a date for an employee
+  /**
+   * 切換日期釘選：固定目前顯示班別，不解鎖時不得被覆蓋。
+   * 若該日尚無班表紀錄，先實體化畫面上的有效班別再釘選，避免誤寫成休息日。
+   * @param empId 同仁 ID
+   * @param dateStr 日期
+   */
   const handleTogglePin = (empId: string, dateStr: string) => {
     setEmployees((prev) =>
       prev.map((e) => {
@@ -274,25 +638,50 @@ export default function App() {
         if (current) {
           newSched[dateStr] = { ...current, isPinned: !current.isPinned };
         } else {
-          // Default to rest shift pinned if empty
-          newSched[dateStr] = { date: dateStr, shiftTypeId: 'shift_rest', isPinned: true };
+          // 沿用畫面有效班別（預設早班／休／例），僅加上釘選，不改班別
+          const effective = getEffectiveShift(e.schedules, dateStr, nationalHolidays);
+          newSched[dateStr] = {
+            ...effective,
+            date: dateStr,
+            isPinned: true,
+          };
         }
         return { ...e, schedules: newSched };
       })
     );
   };
 
-  // Handle batch shift change for multiple dates
+  /**
+   * 批次改班：略過釘選；「空」寫入哨兵清除排班（非休息日／例假／國定假日）。
+   * 「調」請走 onRequestMakeupShift／handleConfirmMakeupLink。
+   * @param empId 同仁 ID
+   * @param dateStrs 日期清單
+   * @param shiftTypeId 目標班別；EMPTY_SHIFT_TYPE_ID 表示清除
+   */
   const handleBatchSelectShift = (empId: string, dateStrs: string[], shiftTypeId: string) => {
+    if (shiftTypeId === 'shift_national_holiday_makeup') {
+      setMakeupPick({ empId, targetDates: dateStrs });
+      return;
+    }
+
     setEmployees((prev) =>
       prev.map((e) => {
         if (e.id !== empId) return e;
         const newSched = { ...e.schedules };
         dateStrs.forEach((dStr) => {
-          if (shiftTypeId === 'shift_empty') {
-            delete newSched[dStr];
+          if (newSched[dStr]?.isPinned) return;
+          // 空班保留 schedules 鍵，避免刪後回填虛擬預設休／例
+          if (shiftTypeId === EMPTY_SHIFT_TYPE_ID) {
+            newSched[dStr] = { date: dStr, shiftTypeId: EMPTY_SHIFT_TYPE_ID };
           } else {
-            newSched[dStr] = { date: dStr, shiftTypeId };
+            newSched[dStr] = {
+              date: dStr,
+              shiftTypeId,
+              note: newSched[dStr]?.note,
+              overtimeHours: newSched[dStr]?.overtimeHours,
+              compLeaveHours: newSched[dStr]?.compLeaveHours,
+              isPinned: newSched[dStr]?.isPinned,
+            };
           }
         });
         return {
@@ -301,25 +690,81 @@ export default function App() {
         };
       })
     );
+
+    // 批次設「國」：缺登記的日期補進假日清單
+    if (shiftTypeId === 'shift_national_holiday') {
+      setNationalHolidays((prev) => {
+        const missing = dateStrs.filter((d) => !prev.some((h) => h.date === d));
+        if (missing.length === 0) return prev;
+        return [
+          ...prev,
+          ...missing.map((d, i) => ({
+            id: `hol_custom_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`,
+            date: d,
+            name: '國定假日（手動排班）',
+            isStatutory: false as const,
+            kind: 'original' as const,
+          })),
+        ];
+      });
+    }
   };
 
-  // Requirement #5 implementation: "方塊平移班別，遇到以上條件不可移動者要卡在最靠近邊界的合法位置" (兩班對調互換)
+  /**
+   * 兩日期班別對調（含僅顯示虛擬預設班別、尚未寫入 schedules 的日期）。
+   * @param schedules 原班表
+   * @param fromDateStr 來源日
+   * @param toDateStr 目標日
+   * @returns 對調後班表
+   */
+  const swapScheduleDates = (
+    schedules: Record<string, DayShift>,
+    fromDateStr: string,
+    toDateStr: string
+  ): Record<string, DayShift> => {
+    const newSched = { ...schedules };
+    const fromStored = schedules[fromDateStr];
+    const toStored = schedules[toDateStr];
+    const fromEff = getEffectiveShift(schedules, fromDateStr, nationalHolidays);
+    const toEff = getEffectiveShift(schedules, toDateStr, nationalHolidays);
+
+    // 釘選任一方則不對調
+    if (fromStored?.isPinned || toStored?.isPinned) return schedules;
+
+    newSched[fromDateStr] = {
+      date: fromDateStr,
+      shiftTypeId: toEff.shiftTypeId,
+      overtimeHours: toStored?.overtimeHours,
+      compLeaveHours: toStored?.compLeaveHours,
+      isOvertime: toStored?.isOvertime,
+      note: toStored?.note,
+    };
+    newSched[toDateStr] = {
+      date: toDateStr,
+      shiftTypeId: fromEff.shiftTypeId,
+      overtimeHours: fromStored?.overtimeHours,
+      compLeaveHours: fromStored?.compLeaveHours,
+      isOvertime: fromStored?.isOvertime,
+      note: fromStored?.note,
+    };
+    return newSched;
+  };
+
+  // Requirement #5：方塊平移班別，非法位置卡在最近合法日（兩班對調）
   const handleSlideShift = (empId: string, dateStr: string, direction: 'left' | 'right') => {
     const emp = employees.find((e) => e.id === empId);
     if (!emp) return;
+    if (emp.schedules[dateStr]?.isPinned) return;
 
-    const sourceShift = emp.schedules[dateStr];
     const targetDate = format(
       addDays(parseISO(dateStr), direction === 'right' ? 1 : -1),
       'yyyy-MM-dd'
     );
-    const targetShift = emp.schedules[targetDate];
+    if (emp.schedules[targetDate]?.isPinned) return;
 
-    if (!sourceShift && !targetShift) return;
+    const sourceEff = getEffectiveShift(emp.schedules, dateStr, nationalHolidays);
+    const movingShiftTypeId = sourceEff.shiftTypeId;
 
-    const movingShiftTypeId = sourceShift ? sourceShift.shiftTypeId : (targetShift?.shiftTypeId || 'shift_rest');
-
-    // Call snap engine
     const snapResult = findNearestLegalDate(
       emp.schedules,
       dateStr,
@@ -328,41 +773,21 @@ export default function App() {
       currentSystem,
       shiftTypes,
       28,
-      emp.cycleStartDate
+      emp.cycleStartDate,
+      nationalHolidays
     );
 
     setSnappedFeedback(snapResult);
 
-    // Update schedule at snapped position with SWAP
     if (snapResult.allowed) {
       const finalTargetDate = snapResult.snappedDate;
-      const finalTargetShift = emp.schedules[finalTargetDate];
-
       setEmployees((prev) =>
         prev.map((e) => {
           if (e.id !== empId) return e;
-          const newSched = { ...e.schedules };
-
-          // Swap logic
-          if (finalTargetShift) {
-            newSched[dateStr] = {
-              date: dateStr,
-              shiftTypeId: finalTargetShift.shiftTypeId,
-            };
-          } else {
-            delete newSched[dateStr];
-          }
-
-          if (sourceShift) {
-            newSched[finalTargetDate] = {
-              date: finalTargetDate,
-              shiftTypeId: sourceShift.shiftTypeId,
-            };
-          } else {
-            delete newSched[finalTargetDate];
-          }
-
-          return { ...e, schedules: newSched };
+          return {
+            ...e,
+            schedules: swapScheduleDates(e.schedules, dateStr, finalTargetDate),
+          };
         })
       );
     }
@@ -373,13 +798,11 @@ export default function App() {
     if (fromDateStr === targetDateStr) return;
     const emp = employees.find((e) => e.id === empId);
     if (!emp) return;
+    if (emp.schedules[fromDateStr]?.isPinned || emp.schedules[targetDateStr]?.isPinned) return;
 
-    const sourceShift = emp.schedules[fromDateStr];
-    const targetShift = emp.schedules[targetDateStr];
-
-    if (!sourceShift && !targetShift) return;
-
-    const movingShiftTypeId = sourceShift ? sourceShift.shiftTypeId : (targetShift?.shiftTypeId || 'shift_rest');
+    // 使用有效班別（含虛擬預設），避免未寫入 schedules 時拖放無效
+    const sourceEff = getEffectiveShift(emp.schedules, fromDateStr, nationalHolidays);
+    const movingShiftTypeId = sourceEff.shiftTypeId;
 
     const snapResult = findNearestLegalDate(
       emp.schedules,
@@ -389,40 +812,21 @@ export default function App() {
       currentSystem,
       shiftTypes,
       28,
-      emp.cycleStartDate
+      emp.cycleStartDate,
+      nationalHolidays
     );
 
     setSnappedFeedback(snapResult);
 
     if (snapResult.allowed) {
       const finalTargetDate = snapResult.snappedDate;
-      const finalTargetShift = emp.schedules[finalTargetDate];
-
       setEmployees((prev) =>
         prev.map((e) => {
           if (e.id !== empId) return e;
-          const newSched = { ...e.schedules };
-
-          // Swap logic
-          if (finalTargetShift) {
-            newSched[fromDateStr] = {
-              date: fromDateStr,
-              shiftTypeId: finalTargetShift.shiftTypeId,
-            };
-          } else {
-            delete newSched[fromDateStr];
-          }
-
-          if (sourceShift) {
-            newSched[finalTargetDate] = {
-              date: finalTargetDate,
-              shiftTypeId: sourceShift.shiftTypeId,
-            };
-          } else {
-            delete newSched[finalTargetDate];
-          }
-
-          return { ...e, schedules: newSched };
+          return {
+            ...e,
+            schedules: swapScheduleDates(e.schedules, fromDateStr, finalTargetDate),
+          };
         })
       );
     }
@@ -464,24 +868,28 @@ export default function App() {
       schedules: {},
     };
 
-    // Pre-populate standard initial schedule: Mon-Fri=普通班(早班), Sat=休息日, Sun=例假日, National Holiday=國定假日
+    // 當月預設：平日早班、六休、七例（稍後再以國假／調覆蓋）
     const startM = startOfMonth(new Date());
     for (let i = 0; i < 31; i++) {
-      const dStr = format(addDays(startM, i), 'yyyy-MM-dd');
-      const isNationalHoliday = nationalHolidays.some((h) => h.date === dStr);
-      if (isNationalHoliday) {
-        newEmp.schedules[dStr] = { date: dStr, shiftTypeId: 'shift_national_holiday' };
+      const d = addDays(startM, i);
+      const dStr = format(d, 'yyyy-MM-dd');
+      const dayOfWeek = d.getDay();
+      if (dayOfWeek === 0) {
+        newEmp.schedules[dStr] = { date: dStr, shiftTypeId: 'shift_mandatory' };
+      } else if (dayOfWeek === 6) {
+        newEmp.schedules[dStr] = { date: dStr, shiftTypeId: 'shift_rest' };
       } else {
-        const dayOfWeek = addDays(startM, i).getDay();
-        if (dayOfWeek === 0) {
-          newEmp.schedules[dStr] = { date: dStr, shiftTypeId: 'shift_mandatory' };
-        } else if (dayOfWeek === 6) {
-          newEmp.schedules[dStr] = { date: dStr, shiftTypeId: 'shift_rest' };
-        } else {
-          newEmp.schedules[dStr] = { date: dStr, shiftTypeId: 'shift_morning' };
-        }
+        newEmp.schedules[dStr] = { date: dStr, shiftTypeId: 'shift_morning' };
       }
     }
+
+    // 寫入清單內「全部」國假／調（不限當月），避免初始設定第三步新增同仁後其他月份只有標註沒有班別
+    nationalHolidays.forEach((holiday) => {
+      newEmp.schedules[holiday.date] = {
+        date: holiday.date,
+        shiftTypeId: resolveHolidayShiftTypeId(holiday),
+      };
+    });
 
     setEmployees((prev) => [...prev, newEmp]);
     if (!selectedEmployeeId) {
@@ -489,11 +897,12 @@ export default function App() {
     }
   };
 
-  // Requirement 1: Automatically assign national holiday shift type for dates configured as national holidays
+  /** 同仁名單變更時也要重套國假（初始設定：先假日後加人） */
+  const employeeIdsKey = employees.map((e) => e.id).join('|');
+
+  // 國定假日／補假清單或同仁名單變更時，自動寫入對應班別（國＝原日、調＝補假）
   useEffect(() => {
     if (nationalHolidays.length === 0 || employees.length === 0) return;
-
-    const holidayDates = Array.from(new Set(nationalHolidays.map((h) => h.date)));
 
     setEmployees((prev) => {
       let hasChanges = false;
@@ -501,10 +910,17 @@ export default function App() {
         let empChanged = false;
         const newSchedules = { ...emp.schedules };
 
-        holidayDates.forEach((hDate: string) => {
-          const currShift = newSchedules[hDate];
-          if (!currShift || currShift.shiftTypeId !== 'shift_national_holiday') {
-            newSchedules[hDate] = { date: hDate, shiftTypeId: 'shift_national_holiday' };
+        nationalHolidays.forEach((holiday) => {
+          const desiredId = resolveHolidayShiftTypeId(holiday);
+          const currShift = newSchedules[holiday.date];
+          // 已釘選則不覆寫（尊重手動鎖定）
+          if (currShift?.isPinned) return;
+          if (!currShift || currShift.shiftTypeId !== desiredId) {
+            newSchedules[holiday.date] = {
+              date: holiday.date,
+              shiftTypeId: desiredId,
+              isPinned: currShift?.isPinned,
+            };
             empChanged = true;
           }
         });
@@ -518,8 +934,7 @@ export default function App() {
 
       return hasChanges ? nextEmployees : prev;
     });
-  }, [nationalHolidays]);
-
+  }, [nationalHolidays, employeeIdsKey]);
   return (
     <div className="min-h-screen bg-[#FAF9F5] text-[#2D2D2D] font-sans flex flex-col antialiased">
       {/* Sticky Top Bar (Header + Employee Selector + System Selector) */}
@@ -560,38 +975,33 @@ export default function App() {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
-            <button
-              onClick={() => setIsExportModalOpen(true)}
-              className="px-3 py-1.5 rounded-xl bg-[#5A5A40]/10 hover:bg-[#5A5A40]/20 text-[#5A5A40] border border-[#5A5A40]/30 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="開啓年曆 / 月曆繪出與列印面版"
-            >
-              <Printer className="w-4 h-4 text-[#5A5A40]" />
-              <span>匯出年曆 / 月曆</span>
-            </button>
-
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
             <div className="flex bg-[#F8F7EB] p-1 rounded-xl border border-[#E9E7D4]">
               <button
                 onClick={() => setViewMode('month')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
                   viewMode === 'month'
                     ? 'bg-[#5A5A40] text-white shadow-sm'
                     : 'text-[#8A8A70] hover:text-[#2D2D2D]'
                 }`}
+                title="月曆模式"
               >
-                <Calendar className="w-4 h-4" />
-                <span>月曆模式</span>
+                <Calendar className="w-4 h-4 flex-shrink-0" />
+                <span className="hidden sm:inline">月曆模式</span>
+                <span className="sm:hidden">月曆</span>
               </button>
               <button
                 onClick={() => setViewMode('timeline')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
                   viewMode === 'timeline'
                     ? 'bg-[#5A5A40] text-white shadow-sm'
                     : 'text-[#8A8A70] hover:text-[#2D2D2D]'
                 }`}
+                title="全人員矩陣模式"
               >
-                <LayoutGrid className="w-4 h-4" />
-                <span>全人員矩陣模式</span>
+                <LayoutGrid className="w-4 h-4 flex-shrink-0" />
+                <span className="hidden sm:inline">全人員矩陣模式</span>
+                <span className="sm:hidden">矩陣</span>
               </button>
             </div>
           </div>
@@ -622,6 +1032,7 @@ export default function App() {
               systemType={currentSystem}
               violations={violations}
               totalWorkHours={totalWorkHours}
+              totalOvertimeHours={totalOvertimeHours}
               maxConsecutiveDays={maxConsecutiveDays}
               mandatoryOffCount={mandatoryOffCount}
               restDayCount={restDayCount}
@@ -637,6 +1048,8 @@ export default function App() {
                 onChangeYearMonth={(y, m) => {
                   setCurrentYear(y);
                   setCurrentMonth(m);
+                  // 月曆換月時，同步矩陣起始日到該月 1 日
+                  setTimelineStartDateStr(format(new Date(y, m - 1, 1), 'yyyy-MM-dd'));
                 }}
                 selectedEmployee={selectedEmployee}
                 currentSystem={currentSystem}
@@ -644,27 +1057,59 @@ export default function App() {
                 nationalHolidays={nationalHolidays}
                 onSelectShift={(dStr, stId) => handleSelectShift(selectedEmployeeId, dStr, stId)}
                 onBatchSelectShifts={(dStrs, stId) => handleBatchSelectShift(selectedEmployeeId, dStrs, stId)}
+                onRequestMakeupShift={(dStrs) =>
+                  setMakeupPick({ empId: selectedEmployeeId, targetDates: dStrs })
+                }
                 onSlideShift={(dStr, dir) => handleSlideShift(selectedEmployeeId, dStr, dir)}
                 onDragDropShift={(fDate, tDate) => handleDragDropShift(selectedEmployeeId, fDate, tDate)}
                 onTogglePin={(dStr) => handleTogglePin(selectedEmployeeId, dStr)}
+                onOpenShiftModal={() => setIsShiftModalOpen(true)}
+                onAdjustOvertime={(dStr, delta) =>
+                  handleAdjustOvertime(selectedEmployeeId, dStr, delta)
+                }
+                onTakeCompLeave={(dStr, delta) =>
+                  handleTakeCompLeave(selectedEmployeeId, dStr, delta)
+                }
+                onSetDayHours={(dStr, hours) =>
+                  handleSetDayDisplayHours(selectedEmployeeId, dStr, hours)
+                }
+                compLeaveBankHours={compLeaveBankHours}
                 highlightDates={highlightDates}
                 snappedFeedback={snappedFeedback}
                 onDismissSnappedFeedback={() => setSnappedFeedback(null)}
               />
             ) : (
               <RosterTimelineView
-                startDateStr={monthStartDateStr}
+                startDateStr={timelineStartDateStr}
                 daysCount={SYSTEM_CONFIGS[currentSystem].cycleDays}
                 employees={employees}
                 allShiftTypes={shiftTypes}
                 nationalHolidays={nationalHolidays}
                 onSelectShift={(empId, dStr, stId) => handleSelectShift(empId, dStr, stId)}
+                onRequestMakeupShift={(cells) => {
+                  if (cells.length === 0) return;
+                  // 矩陣多格時以第一格同仁為準（同批通常同仁）
+                  setMakeupPick({
+                    empId: cells[0].empId,
+                    targetDates: cells.map((c) => c.dateStr),
+                  });
+                }}
                 onSlideShift={(empId, dStr, dir) => handleSlideShift(empId, dStr, dir)}
                 onDragDropShift={(empId, fDate, tDate) => handleDragDropShift(empId, fDate, tDate)}
                 onTogglePin={(empId, dStr) => handleTogglePin(empId, dStr)}
-                onChangeStartDate={() => {}}
+                onChangeStartDate={(newStart) => {
+                  setTimelineStartDateStr(newStart);
+                  // 同步年月供檢核面板／月曆對齊，但不強制回到 1 日
+                  const d = parseISO(newStart);
+                  setCurrentYear(d.getFullYear());
+                  setCurrentMonth(d.getMonth() + 1);
+                }}
                 selectedEmployeeId={selectedEmployeeId}
                 onSelectEmployee={setSelectedEmployeeId}
+                onOpenShiftModal={() => setIsShiftModalOpen(true)}
+                onAdjustOvertime={handleAdjustOvertime}
+                onTakeCompLeave={handleTakeCompLeave}
+                onSetDayHours={handleSetDayDisplayHours}
               />
             )}
           </>
@@ -677,7 +1122,11 @@ export default function App() {
         onClose={() => setIsSetupWizardModalOpen(false)}
         nationalHolidays={nationalHolidays}
         onAddHoliday={(h) =>
-          setNationalHolidays((prev) => [...prev, { ...h, id: `hol_custom_${Date.now()}` }])
+          setNationalHolidays((prev) => [
+            ...prev,
+            // 亂數後綴避免連加原日與補假時 Date.now() 撞號
+            { ...h, id: `hol_custom_${Date.now()}_${Math.random().toString(36).slice(2, 7)}` },
+          ])
         }
         onDeleteHoliday={(id) => setNationalHolidays((prev) => prev.filter((h) => h.id !== id))}
         onResetHolidays={() => setNationalHolidays(INITIAL_TAIWAN_HOLIDAYS)}
@@ -710,13 +1159,38 @@ export default function App() {
         onClose={() => setIsUserGuideModalOpen(false)}
       />
 
+      {/* 手動「調」：從畫面上的「國」班挑選來源 */}
+      <MakeupSourcePickerModal
+        isOpen={!!makeupPick}
+        targetDate={makeupPick?.targetDates[0] ?? ''}
+        candidates={
+          makeupPick
+            ? collectNationalShiftCandidates(
+                employees.find((e) => e.id === makeupPick.empId),
+                nationalHolidays,
+                [
+                  ...makeupPick.targetDates,
+                  monthStartDateStr,
+                  monthEndDateStr,
+                ]
+              )
+            : []
+        }
+        onConfirm={handleConfirmMakeupLink}
+        onCancel={handleCancelMakeupLink}
+      />
+
       {/* Modals */}
       <NationalHolidaySettingsModal
         isOpen={isHolidaysModalOpen}
         onClose={() => setIsHolidaysModalOpen(false)}
         holidays={nationalHolidays}
         onAddHoliday={(h) =>
-          setNationalHolidays((prev) => [...prev, { ...h, id: `hol_custom_${Date.now()}` }])
+          setNationalHolidays((prev) => [
+            ...prev,
+            // 亂數後綴避免連加原日與補假時 Date.now() 撞號
+            { ...h, id: `hol_custom_${Date.now()}_${Math.random().toString(36).slice(2, 7)}` },
+          ])
         }
         onDeleteHoliday={(id) => setNationalHolidays((prev) => prev.filter((h) => h.id !== id))}
         onResetHolidays={() => setNationalHolidays(INITIAL_TAIWAN_HOLIDAYS)}
@@ -728,7 +1202,10 @@ export default function App() {
         onClose={() => setIsShiftModalOpen(false)}
         shiftTypes={shiftTypes}
         onAddShiftType={(st) => setShiftTypes((prev) => [...prev, st])}
-        onUpdateShiftType={(st) => setShiftTypes((prev) => prev.map((s) => (s.id === st.id ? s : s)))}
+        // 以新班別物件覆寫同 id 項目，勿兩邊都回傳 s（否則儲存無效）
+        onUpdateShiftType={(st) =>
+          setShiftTypes((prev) => prev.map((s) => (s.id === st.id ? st : s)))
+        }
         onDeleteShiftType={(id) => setShiftTypes((prev) => prev.filter((s) => s.id !== id))}
       />
 

@@ -1,16 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { LaborRuleViolation, ScheduleSystemType } from '../types';
 import { SYSTEM_CONFIGS } from '../constants/systems';
+import { MAX_MONTHLY_OVERTIME_HOURS } from '../constants/overtime';
 import { ShieldCheck, AlertTriangle, AlertCircle, Info, Calendar, Clock, Scale, X, ChevronDown, ChevronUp } from 'lucide-react';
 
+/**
+ * 班表檢核面板屬性。
+ */
 interface LaborAuditPanelProps {
+  /** 目前工時制度。 */
   systemType: ScheduleSystemType;
+  /** 違規清單。 */
   violations: LaborRuleViolation[];
+  /** 本週期正常工時合計（不含延長）。 */
   totalWorkHours: number;
+  /** 本月延長工時合計。 */
+  totalOvertimeHours: number;
+  /** 最長連續工作天數。 */
   maxConsecutiveDays: number;
+  /** 例假日天數。 */
   mandatoryOffCount: number;
+  /** 休息日天數。 */
   restDayCount: number;
+  /** 國定假日出勤天數。 */
   nationalHolidayWorkCount: number;
+  /** 點擊違規項高亮日期。 */
   onHighlightDates?: (dates: string[]) => void;
 }
 
@@ -18,6 +32,7 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
   systemType,
   violations,
   totalWorkHours,
+  totalOvertimeHours,
   maxConsecutiveDays,
   mandatoryOffCount,
   restDayCount,
@@ -116,9 +131,9 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
 
       {!isCollapsed && (
         <>
-          {/* 4 Key Metrics Bar */}
+          {/* 關鍵指標：正常工時（隨制度）＋延長工時（月上限 46H） */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-1">
-            {/* Metric 1: Cycle Normal Hours */}
+            {/* Metric 1: 週期正常工時 */}
             <div
               className={`p-3 rounded-xl border ${
                 totalWorkHours > config.maxNormalHoursPerCycle
@@ -128,13 +143,16 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
             >
               <div className="flex items-center justify-between text-xs text-[#8A8A70] mb-1">
                 <span className="flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-[#5A5A40]" /> 週期總正常工時
+                  <Clock className="w-3.5 h-3.5 text-[#5A5A40]" /> 正常工時
                 </span>
-                <span className="text-[10px] font-mono">上限 {config.maxNormalHoursPerCycle}H</span>
+                <span className="text-[10px] font-mono">最多 {config.maxNormalHoursPerCycle}H</span>
               </div>
               <div className="flex items-baseline space-x-1">
                 <span className="text-xl font-black font-mono text-[#5A5A40]">{totalWorkHours}</span>
                 <span className="text-xs text-[#8A8A70]">小時</span>
+              </div>
+              <div className="text-[10px] text-[#8A8A70] mt-1">
+                {config.name}／{config.cycleDays} 天週期
               </div>
               <div className="w-full bg-[#E9E7D4] h-1.5 rounded-full mt-2 overflow-hidden">
                 <div
@@ -148,7 +166,41 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
               </div>
             </div>
 
-            {/* Metric 2: Max Consecutive Work Days */}
+            {/* Metric 2: 當月延長工時 */}
+            <div
+              className={`p-3 rounded-xl border ${
+                totalOvertimeHours > MAX_MONTHLY_OVERTIME_HOURS
+                  ? 'bg-[#D17A60]/10 border-[#D17A60]/30 text-[#2D2D2D]'
+                  : 'bg-[#F8F7EB] border-[#E9E7D4] text-[#2D2D2D]'
+              }`}
+            >
+              <div className="flex items-center justify-between text-xs text-[#8A8A70] mb-1">
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-[#D9A05B]" /> 延長工時
+                </span>
+                <span className="text-[10px] font-mono">最多 {MAX_MONTHLY_OVERTIME_HOURS}H</span>
+              </div>
+              <div className="flex items-baseline space-x-1">
+                <span className="text-xl font-black font-mono text-[#D9A05B]">{totalOvertimeHours}</span>
+                <span className="text-xs text-[#8A8A70]">小時</span>
+              </div>
+              <div className="text-[10px] text-[#8A8A70] mt-1">本月累計（勞基法第32條）</div>
+              <div className="w-full bg-[#E9E7D4] h-1.5 rounded-full mt-2 overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-300 ${
+                    totalOvertimeHours > MAX_MONTHLY_OVERTIME_HOURS ? 'bg-[#D17A60]' : 'bg-[#D9A05B]'
+                  }`}
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      (totalOvertimeHours / MAX_MONTHLY_OVERTIME_HOURS) * 100
+                    )}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Metric 3: Max Consecutive Work Days */}
             <div
               className={`p-3 rounded-xl border ${
                 maxConsecutiveDays > config.maxConsecutiveWorkDays
@@ -178,7 +230,7 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
               </div>
             </div>
 
-            {/* Metric 3: Mandatory Off Days (例假日) */}
+            {/* Metric 4: Mandatory Off Days (例假日) */}
             <div
               className={`p-3 rounded-xl border ${
                 mandatoryOffCount < config.minMandatoryOffPerCycle
@@ -198,29 +250,9 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
               </div>
               <div className="text-[10px] text-[#8A8A70] mt-1">
                 {mandatoryOffCount >= config.minMandatoryOffPerCycle ? '✅ 符合法定例假' : '❌ 天數不足'}
-              </div>
-            </div>
-
-            {/* Metric 4: Rest Days (休息日) */}
-            <div
-              className={`p-3 rounded-xl border ${
-                restDayCount < config.minRestDaysPerCycle
-                  ? 'bg-[#D9A05B]/10 border-[#D9A05B]/30 text-[#2D2D2D]'
-                  : 'bg-[#F8F7EB] border-[#E9E7D4] text-[#2D2D2D]'
-              }`}
-            >
-              <div className="flex items-center justify-between text-xs text-[#8A8A70] mb-1">
-                <span className="flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#4A7C59]" /> 休息日數 (休)
-                </span>
-                <span className="text-[10px] font-mono">應有 {config.minRestDaysPerCycle}天</span>
-              </div>
-              <div className="flex items-baseline space-x-1">
-                <span className="text-xl font-black font-mono text-[#4A7C59]">{restDayCount}</span>
-                <span className="text-xs text-[#8A8A70]">天</span>
-              </div>
-              <div className="text-[10px] text-[#8A8A70] mt-1">
-                {restDayCount >= config.minRestDaysPerCycle ? '✅ 休息日足額' : '⚠️ 需核算出勤加班費'}
+                {restDayCount < config.minRestDaysPerCycle
+                  ? `／休息日 ${restDayCount}/${config.minRestDaysPerCycle}`
+                  : ''}
               </div>
             </div>
           </div>
@@ -285,7 +317,7 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
       {/* Legal Rules Explanation Modal */}
       {isLegalModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E9E7D4] rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 text-[#2D2D2D] relative animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white border border-[#E9E7D4] rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 text-[#2D2D2D] relative animate-in fade-in zoom-in-95 duration-200 text-base">
             <button
               onClick={() => setIsLegalModalOpen(false)}
               className="absolute top-4 right-4 p-1.5 text-[#8A8A70] hover:text-[#2D2D2D] rounded-lg hover:bg-[#F8F7EB] transition-colors cursor-pointer"
@@ -293,49 +325,43 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
               <X className="w-5 h-5" />
             </button>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 pr-8">
               <div className="p-2.5 bg-[#5A5A40]/10 text-[#5A5A40] rounded-xl border border-[#5A5A40]/20">
                 <Scale className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-[#2D2D2D]">
-                  {config.name} — 勞動基準法規範細則
-                </h3>
-                <span className="text-xs text-[#8A8A70] font-mono">{config.legalBasis}</span>
+                <h3 className="text-base font-bold text-[#2D2D2D]">{config.name}</h3>
+                <span className="text-base text-[#8A8A70] font-mono">{config.legalBasis}</span>
               </div>
             </div>
 
-            <div className="bg-[#F8F7EB] p-3 rounded-xl border border-[#E9E7D4] text-xs text-[#2D2D2D] space-y-1">
+            <div className="bg-[#F8F7EB] p-3 rounded-xl border border-[#E9E7D4] text-base text-[#2D2D2D] space-y-1">
               <span className="font-bold text-[#5A5A40]">適用產業 / 行業類型：</span>
-              <p className="text-[#8A8A70]">{config.applicableIndustries}</p>
+              <p className="text-[#8A8A70] leading-relaxed">{config.applicableIndustries}</p>
             </div>
 
-            <p className="text-xs text-[#2D2D2D] leading-relaxed">
-              {config.description}
-            </p>
-
-            <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="grid grid-cols-2 gap-2 text-base">
               <div className="bg-[#F8F7EB] p-2.5 rounded-xl border border-[#E9E7D4]">
-                <div className="text-[10px] text-[#8A8A70] mb-0.5">每週期正常總工時</div>
-                <div className="text-sm font-bold text-[#5A5A40] font-mono">
+                <div className="text-sm text-[#8A8A70] mb-0.5">每週期正常總工時</div>
+                <div className="font-bold text-[#5A5A40] font-mono">
                   {config.maxNormalHoursPerCycle} 小時 / {config.cycleDays} 日
                 </div>
               </div>
               <div className="bg-[#F8F7EB] p-2.5 rounded-xl border border-[#E9E7D4]">
-                <div className="text-[10px] text-[#8A8A70] mb-0.5">單日正常工時上限</div>
-                <div className="text-sm font-bold text-[#5A5A40] font-mono">
+                <div className="text-sm text-[#8A8A70] mb-0.5">單日正常工時上限</div>
+                <div className="font-bold text-[#5A5A40] font-mono">
                   至多 {config.maxDailyNormalHours} 小時
                 </div>
               </div>
               <div className="bg-[#F8F7EB] p-2.5 rounded-xl border border-[#E9E7D4]">
-                <div className="text-[10px] text-[#8A8A70] mb-0.5">連續工作天數限制</div>
-                <div className="text-sm font-bold text-[#D17A60] font-mono">
+                <div className="text-sm text-[#8A8A70] mb-0.5">連續工作天數限制</div>
+                <div className="font-bold text-[#D17A60] font-mono">
                   不得連續工作超過 {config.maxConsecutiveWorkDays} 天
                 </div>
               </div>
               <div className="bg-[#F8F7EB] p-2.5 rounded-xl border border-[#E9E7D4]">
-                <div className="text-[10px] text-[#8A8A70] mb-0.5">每週期至少休息日與例假</div>
-                <div className="text-sm font-bold text-[#4A7C59] font-mono">
+                <div className="text-sm text-[#8A8A70] mb-0.5">每週期至少休息日與例假</div>
+                <div className="font-bold text-[#4A7C59] font-mono">
                   {config.minMandatoryOffPerCycle} 例假 + {config.minRestDaysPerCycle} 休息日
                 </div>
               </div>
@@ -345,7 +371,7 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
               <button
                 type="button"
                 onClick={() => setIsLegalModalOpen(false)}
-                className="px-4 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-sm"
+                className="px-4 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white text-base font-bold rounded-xl transition-colors cursor-pointer shadow-sm"
               >
                 關閉法規說明
               </button>

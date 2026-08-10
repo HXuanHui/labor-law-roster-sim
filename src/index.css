@@ -7,35 +7,361 @@
   }
 }
 
+/*
+ * A4 橫向。必須同時指定紙張尺寸＋方向，
+ * 僅寫 landscape 時，部分「另存 PDF」產出的檔案會無法開啟。
+ * 可用高度約 210mm - 16mm（上下 margin）= 194mm。
+ */
+@page {
+  size: A4 landscape;
+  margin: 8mm;
+}
+
 @media print {
+  html,
   body {
     background-color: #ffffff !important;
     color: #000000 !important;
     margin: 0 !important;
     padding: 0 !important;
+    overflow: visible !important;
+    /* 保留班別色塊（彩色列印） */
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  /* Hide background elements when printing modal */
-  .no-print,
-  nav,
-  header,
-  .sticky {
+  /*
+   * 僅輸出匯出行事曆：祖先 hidden、目標子樹 visible（標準列印技巧）。
+   * 不使用通配 display:none，避免巢狀 Modal 被連帶藏掉。
+   */
+  body * {
+    visibility: hidden;
+  }
+
+  .export-print-root,
+  .export-print-root * {
+    visibility: visible;
+  }
+
+  .export-print-root .no-print,
+  .export-print-root .no-print * {
     display: none !important;
+    visibility: hidden !important;
   }
 
-  /* Ensure modal container fills page */
-  .fixed.inset-0 {
+  /* 匯出 Modal：滿版文件流、解除裁切 */
+  .export-print-root {
     position: absolute !important;
-    inset: 0 !important;
-    background: transparent !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
     padding: 0 !important;
     overflow: visible !important;
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  /* Print page break helpers */
-  .page-break,
-  .print\:break-before-page {
-    break-before: page !important;
-    page-break-before: always !important;
+  .export-print-sheet {
+    width: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  .export-print-body {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /*
+   * 每位同仁一頁：固定可用高度，標題／說明固定、月曆／年曆撐滿剩餘空間。
+   * 有說明時整體字級縮小，以維持單頁 A4。
+   */
+  .export-print-page {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: 194mm !important;
+    max-height: 194mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2mm !important;
+    overflow: hidden !important;
+    break-after: page;
+    page-break-after: always;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* 覆蓋 Tailwind space-y，改由 flex gap 控制列印間距 */
+  .export-print-page > * + * {
+    margin-top: 0 !important;
+  }
+
+  .export-print-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .export-print-header {
+    flex: 0 0 auto !important;
+    padding-bottom: 1mm !important;
+    gap: 1mm !important;
+  }
+
+  .export-print-title {
+    font-size: 14pt !important;
+    line-height: 1.15 !important;
+  }
+
+  .export-print-meta {
+    font-size: 8pt !important;
+    line-height: 1.25 !important;
+    margin-top: 0.5mm !important;
+  }
+
+  .export-print-notes {
+    flex: 0 0 auto !important;
+    padding: 1.5mm 2mm !important;
+    border-radius: 1mm !important;
+    font-size: 7.5pt !important;
+    line-height: 1.25 !important;
+    gap: 0.6mm !important;
+  }
+
+  .export-print-notes p,
+  .export-print-notes span {
+    font-size: inherit !important;
+    line-height: inherit !important;
+  }
+
+  /* ---------- 月曆：一頁塞滿；有說明時格位略縮 ---------- */
+  .export-print-page--month .export-print-month-view {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+  }
+
+  .export-print-page--month .export-print-month-title {
+    flex: 0 0 auto !important;
+    padding: 1.5mm 2.5mm !important;
+    font-size: 11pt !important;
+  }
+
+  .export-print-page--month .export-print-month-stats {
+    font-size: 8pt !important;
+  }
+
+  .export-print-page--month .export-print-month-weekdays {
+    flex: 0 0 auto !important;
+    padding-top: 1mm !important;
+    padding-bottom: 1mm !important;
+    font-size: 8pt !important;
+  }
+
+  .export-print-page--month .export-print-month-days {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    grid-template-rows: repeat(6, minmax(0, 1fr)) !important;
+  }
+
+  .export-print-page--month .export-print-month-day {
+    min-height: 0 !important;
+    height: 100% !important;
+    padding: 1mm !important;
+  }
+
+  .export-print-page--month .export-print-month-day-num {
+    font-size: 10pt !important;
+  }
+
+  .export-print-page--month .export-print-month-holiday {
+    font-size: 6.5pt !important;
+    max-width: 70% !important;
+  }
+
+  .export-print-page--month .export-print-month-shift {
+    margin-top: 0.5mm !important;
+    padding: 0.8mm !important;
+    font-size: 8pt !important;
+    border-radius: 1mm !important;
+  }
+
+  .export-print-page--month .export-print-month-shift span,
+  .export-print-page--month .export-print-month-shift div {
+    font-size: inherit !important;
+  }
+
+  /* 月曆＋說明：略縮標題與格內文字，讓說明＋月曆共一頁 */
+  .export-print-page--month.export-print-page--with-notes .export-print-title {
+    font-size: 12pt !important;
+  }
+
+  .export-print-page--month.export-print-page--with-notes .export-print-notes {
+    font-size: 6.5pt !important;
+    padding: 1mm 1.5mm !important;
+  }
+
+  .export-print-page--month.export-print-page--with-notes .export-print-month-title {
+    font-size: 10pt !important;
+    padding: 1mm 2mm !important;
+  }
+
+  .export-print-page--month.export-print-page--with-notes .export-print-month-day-num {
+    font-size: 9pt !important;
+  }
+
+  .export-print-page--month.export-print-page--with-notes .export-print-month-shift {
+    font-size: 7pt !important;
+  }
+
+  /* ---------- 年曆：3×4 撐滿剩餘高度；有說明時全體縮小 ---------- */
+  .export-print-page--year .export-print-year-grid {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(4, minmax(0, 1fr)) !important;
+    gap: 2mm !important;
+  }
+
+  .export-print-page--year .export-print-year-month {
+    min-height: 0 !important;
+    height: 100% !important;
+    border-radius: 1mm !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+  }
+
+  .export-print-page--year .export-print-year-month-title {
+    flex: 0 0 auto !important;
+    padding: 0.6mm 0 !important;
+    font-size: 8pt !important;
+  }
+
+  .export-print-page--year .export-print-year-month-body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    padding: 0.6mm !important;
+  }
+
+  .export-print-page--year .export-print-year-weekdays {
+    flex: 0 0 auto !important;
+    font-size: 6.5pt !important;
+    margin-bottom: 0.4mm !important;
+    padding-bottom: 0.3mm !important;
+  }
+
+  .export-print-page--year .export-print-year-days {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(6, minmax(0, 1fr)) !important;
+    gap: 0.3mm !important;
+  }
+
+  .export-print-page--year .export-print-year-day {
+    height: 100% !important;
+    min-height: 0 !important;
+    border-radius: 0.3mm !important;
+  }
+
+  .export-print-page--year .export-print-year-day-num {
+    font-size: 6.5pt !important;
+  }
+
+  .export-print-page--year .export-print-year-day-code {
+    font-size: 5pt !important;
+    margin-top: 0 !important;
+    transform: none !important;
+  }
+
+  .export-print-page--year .export-print-year-footer {
+    flex: 0 0 auto !important;
+    font-size: 6pt !important;
+    padding: 0.4mm 1mm !important;
+  }
+
+  /* 年曆無說明：字級略大，月格撐滿整頁 */
+  .export-print-page--year.export-print-page--no-notes .export-print-title {
+    font-size: 13pt !important;
+  }
+
+  .export-print-page--year.export-print-page--no-notes .export-print-year-month-title {
+    font-size: 8.5pt !important;
+  }
+
+  .export-print-page--year.export-print-page--no-notes .export-print-year-day-num {
+    font-size: 7pt !important;
+  }
+
+  .export-print-page--year.export-print-page--no-notes .export-print-year-day-code {
+    font-size: 5.5pt !important;
+  }
+
+  /* 年曆有說明：整體再縮，標題＋說明＋12 月仍盡量單頁 */
+  .export-print-page--year.export-print-page--with-notes {
+    gap: 1.2mm !important;
+  }
+
+  .export-print-page--year.export-print-page--with-notes .export-print-title {
+    font-size: 11pt !important;
+  }
+
+  .export-print-page--year.export-print-page--with-notes .export-print-meta {
+    font-size: 7pt !important;
+  }
+
+  .export-print-page--year.export-print-page--with-notes .export-print-notes {
+    font-size: 6pt !important;
+    padding: 0.8mm 1.2mm !important;
+    line-height: 1.2 !important;
+  }
+
+  .export-print-page--year.export-print-page--with-notes .export-print-year-grid {
+    gap: 1.2mm !important;
+  }
+
+  .export-print-page--year.export-print-page--with-notes .export-print-year-month-title {
+    font-size: 6.5pt !important;
+    padding: 0.3mm 0 !important;
+  }
+
+  .export-print-page--year.export-print-page--with-notes .export-print-year-weekdays {
+    font-size: 5.5pt !important;
+  }
+
+  .export-print-page--year.export-print-page--with-notes .export-print-year-day-num {
+    font-size: 5.5pt !important;
+  }
+
+  .export-print-page--year.export-print-page--with-notes .export-print-year-day-code {
+    font-size: 4.5pt !important;
+  }
+
+  .export-print-page--year.export-print-page--with-notes .export-print-year-footer {
+    font-size: 5pt !important;
+    padding: 0.2mm 0.8mm !important;
   }
 }
