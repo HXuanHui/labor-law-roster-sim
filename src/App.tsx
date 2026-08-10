@@ -39,13 +39,13 @@ import { UserGuideModal } from './components/UserGuideModal';
 import { DisclaimerModal } from './components/DisclaimerModal';
 import { LegalInfoModal } from './components/LegalInfoModal';
 import { ExportCalendarModal } from './components/ExportCalendarModal';
-import { SimpleInfoModal } from './components/SimpleInfoModal';
+import { AboutModal } from './components/AboutModal';
 import {
   collectNationalShiftCandidates,
   MakeupSourcePickerModal,
 } from './components/MakeupSourcePickerModal';
 import { buildMakeupHolidayName } from './utils/holidayMakeup';
-import { Calendar, Heart, LayoutGrid, Sparkles } from 'lucide-react';
+import { Calendar, LayoutGrid, Sparkles } from 'lucide-react';
 import { addDays, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
 
 export default function App() {
@@ -1127,6 +1127,36 @@ export default function App() {
         )}
       </main>
 
+      {/* 頁尾免責／贊助提示：小字置底，避免與主內容搶視覺 */}
+      <footer className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-6 pt-2">
+        <p className="text-center text-xs text-[#8A8A70] leading-relaxed">
+          本工具免費使用，僅供排班規劃與
+          <button
+            type="button"
+            onClick={() => setIsLegalInfoModalOpen(true)}
+            className="underline underline-offset-2 hover:text-[#5A5A40] transition-colors cursor-pointer"
+          >
+            教育模擬
+          </button>
+          參考，
+          <button
+            type="button"
+            onClick={() => setIsDisclaimerModalOpen(true)}
+            className="underline underline-offset-2 hover:text-[#5A5A40] transition-colors cursor-pointer"
+          >
+            非正式法律意見或勞動檢查結論
+          </button>
+          。若幫到你，
+          <button
+            type="button"
+            onClick={() => setIsAboutModalOpen(true)}
+            className="underline underline-offset-2 hover:text-[#5A5A40] transition-colors cursor-pointer"
+          >
+            歡迎請我杯咖啡（還沒放）
+          </button>
+        </p>
+      </footer>
+
       {/* Initial Setup Wizard Panel */}
       <SetupWizardModal
         isOpen={isSetupWizardModalOpen}
@@ -1189,17 +1219,15 @@ export default function App() {
         onClose={() => setIsLegalInfoModalOpen(false)}
       />
 
-      <SimpleInfoModal
+      <AboutModal
         isOpen={isAboutModalOpen}
         onClose={() => setIsAboutModalOpen(false)}
-        title="關於我"
-        subtitle="開發者與贊助資訊"
-        icon={<Heart className="w-5 h-5" />}
-      >
-        <p className="text-[#5A5A40]">
-          這裡之後會放開發者簡介與贊助資訊（例如贊助連結或 QR Code）。目前為預留頁面。
-        </p>
-      </SimpleInfoModal>
+        onOpenDisclaimer={() => {
+          // 先關關於再開免責，避免兩層 Modal 疊加
+          setIsAboutModalOpen(false);
+          setIsDisclaimerModalOpen(true);
+        }}
+      />
 
       {/* 手動「調」：從畫面上的「國」班挑選來源 */}
       <MakeupSourcePickerModal

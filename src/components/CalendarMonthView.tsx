@@ -8,7 +8,6 @@ import { getContrastingTextColor } from '../utils/colorContrast';
 import {
   ChevronLeft,
   ChevronRight,
-  Calendar as CalendarIcon,
   AlertTriangle,
   Layers,
   CheckSquare,
@@ -370,9 +369,6 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
       <div className="bg-[#F8F7EB] p-3 sm:p-4 border-b border-[#E9E7D4] rounded-t-2xl space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center space-x-2.5 min-w-0">
-            <div className="p-2 bg-[#5A5A40]/10 text-[#5A5A40] rounded-xl border border-[#5A5A40]/20 flex-shrink-0">
-              <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <h2 className="text-xl font-bold text-[#2D2D2D] font-serif tracking-tight">

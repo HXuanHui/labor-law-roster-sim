@@ -2,7 +2,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 
 /**
- * 輕量資訊 Modal 屬性（免責／法規／關於我等佔位入口共用）。
+ * 輕量資訊 Modal 屬性（免責／法規／關於等佔位入口共用）。
  */
 interface SimpleInfoModalProps {
   /** 是否顯示。 */
@@ -20,7 +20,7 @@ interface SimpleInfoModalProps {
 }
 
 /**
- * 輕量資訊 Modal：供說明類頁面（免責、法規、關於我）使用。
+ * 輕量資訊 Modal：供說明類頁面（免責、法規、關於）使用。
  *
  * @param props.isOpen 是否顯示
  * @param props.onClose 關閉回呼

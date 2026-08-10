@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Calendar,
   Users,
   Download,
   ShieldCheck,
@@ -46,7 +45,7 @@ interface HeaderProps {
   onOpenDisclaimerModal?: () => void;
   /** 開啟法規說明。 */
   onOpenLegalModal?: () => void;
-  /** 開啟關於我／贊助。 */
+  /** 開啟關於／贊助。 */
   onOpenAboutModal?: () => void;
   /** 清除所有本機儲存資料。 */
   onClearAllData?: () => void;
@@ -166,16 +165,11 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="bg-[#F8F7EB] text-[#2D2D2D] border-b border-[#E9E7D4]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between py-3 gap-3">
-          {/* Logo & App Name */}
-          <div className="flex items-center space-x-3 min-w-0">
-            <div className="w-10 h-10 rounded-lg bg-[#5A5A40] flex items-center justify-center shadow-sm flex-shrink-0">
-              <Calendar className="w-5 h-5 text-white" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-[#2D2D2D] truncate">
-                排班模擬系統
-              </h1>
-            </div>
+          {/* App Name */}
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-[#2D2D2D] truncate">
+              排班模擬系統
+            </h1>
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -385,7 +379,7 @@ export const Header: React.FC<HeaderProps> = ({
                         className={dropdownItemClass}
                       >
                         <Heart className={toolIconClass} />
-                        關於我
+                        關於
                       </button>
                     )}
                   </div>
@@ -513,7 +507,7 @@ export const Header: React.FC<HeaderProps> = ({
                     className={toolBtnMobileClass}
                   >
                     <Heart className={toolIconMobileClass} />
-                    關於我
+                    關於
                   </button>
                 )}
               </div>

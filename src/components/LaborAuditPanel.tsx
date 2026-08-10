@@ -61,23 +61,6 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
         title={isCollapsed ? "點擊展開班表檢核表" : "點擊縮小班表檢核表"}
       >
         <div className="flex items-center space-x-3">
-          <div
-            className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-              hasErrors
-                ? 'bg-[#D17A60]/15 text-[#D17A60] border border-[#D17A60]/30'
-                : hasWarnings
-                ? 'bg-[#D9A05B]/15 text-[#D9A05B] border border-[#D9A05B]/30'
-                : 'bg-[#4A7C59]/15 text-[#4A7C59] border border-[#4A7C59]/30'
-            }`}
-          >
-            {hasErrors ? (
-              <AlertCircle className="w-5 h-5 animate-pulse" />
-            ) : hasWarnings ? (
-              <AlertTriangle className="w-5 h-5" />
-            ) : (
-              <ShieldCheck className="w-5 h-5" />
-            )}
-          </div>
           <div>
             <h2 className="text-base font-bold text-[#2D2D2D] flex items-center gap-2">
               <span>班表檢核表</span>
