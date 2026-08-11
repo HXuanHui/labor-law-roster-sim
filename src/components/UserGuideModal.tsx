@@ -10,14 +10,32 @@ import {
   AlertTriangle,
   Clock3,
   Gauge,
+  Keyboard,
 } from 'lucide-react';
 
+/** 使用說明章節分類。 */
+type GuideCategory = 'operate' | 'interpret';
+
 /**
- * 使用說明操作章節定義（含截圖）。
+ * 章節內嵌截圖定義。
+ */
+interface GuideImage {
+  /** 截圖路徑（public/guide）。 */
+  src: string;
+  /** 截圖替代文字。 */
+  alt: string;
+  /** 截圖下方簡短說明。 */
+  caption: string;
+}
+
+/**
+ * 使用說明章節定義（含截圖）。
  */
 interface GuideSection {
   /** 章節識別碼。 */
   id: string;
+  /** 所屬分類。 */
+  category: GuideCategory;
   /** 側欄標題。 */
   title: string;
   /** 圖示元件。 */
@@ -26,12 +44,8 @@ interface GuideSection {
   paragraphs: string[];
   /** 操作步驟清單。 */
   steps: string[];
-  /** 對應截圖路徑（public/guide）。 */
-  imageSrc: string;
-  /** 截圖替代文字。 */
-  imageAlt: string;
-  /** 截圖下方簡短說明。 */
-  imageCaption: string;
+  /** 對應截圖（可多張）。 */
+  images: GuideImage[];
 }
 
 /**
@@ -44,27 +58,70 @@ interface UserGuideModalProps {
   onClose: () => void;
 }
 
-/** 使用說明操作主軸章節（不含免責／法規；該兩項另有獨立入口）。 */
+/** 分類標題。 */
+const CATEGORY_LABELS: Record<GuideCategory, string> = {
+  operate: '操作說明',
+  interpret: '資訊判讀',
+};
+
+/** 使用說明章節：操作說明／資訊判讀兩大類。 */
 const GUIDE_SECTIONS: GuideSection[] = [
   {
     id: 'select',
+    category: 'operate',
     title: '點選與批次換班',
     icon: <CheckSquare className="w-5 h-5" />,
     paragraphs: [
-      '在班表格子上點擊即可選取日期；可單選一日，也可連續點選多日進行多選。',
+      '在班表格子上點擊即可選取日期；可單選一日，也可多選後一次套用班別。',
       '選取後畫面下方會出現深色操作列，顯示已選天數與可用班別按鈕；點擊班別即可一次套用至所有選取日期。',
+      '範圍選取：先點一日作為起點，再按住 Shift 點另一日，可一次選取兩日之間的連續日期。也可用 Ctrl／⌘ 逐日加減選取。',
     ],
     steps: [
       '點擊日期格子進行單選；再點其他格子可累加為多選（選取中會顯示勾選與外框）。',
+      '按住 Shift 再點另一日期，可範圍選取起迄之間的多日。',
       '於下方操作列點選目標班別（早／中／夜／全／休／例／國／調／空等）。',
       '需要新班別時可按操作列右側「＋」新增；按「取消」可清除選取。',
     ],
-    imageSrc: '/guide/01-select-shifts.png',
-    imageAlt: '多選日期後以下方操作列批次更換班別',
-    imageCaption: '範例：已選 3 日，藉由底部操作列一次套用班別',
+    images: [
+      {
+        src: '/guide/01-select-shifts.png',
+        alt: '多選日期後以下方操作列批次更換班別',
+        caption: '範例：已選多日，藉由底部操作列一次套用班別',
+      },
+    ],
+  },
+  {
+    id: 'hotkeys',
+    category: 'operate',
+    title: '快捷鍵快速套用',
+    icon: <Keyboard className="w-5 h-5" />,
+    paragraphs: [
+      '選取日期後，除了點操作列的班別按鈕，也可直接按下已設定的快捷鍵，立刻套用到所有選取日期。',
+      '操作列按鈕右上方若顯示數字或字母（例如 3、6、7、0），即表示該班別已綁定快捷鍵。',
+      '快捷鍵可在「設定 → 班別設定」中為各班別指定（支援 0–9、A–Z 與部分符號鍵）；「空」清除亦可設定快捷鍵。',
+    ],
+    steps: [
+      '先以點選或 Shift 範圍選取要換班的日期。',
+      '確認操作列上目標班別旁的快捷鍵標示。',
+      '按下對應按鍵即可批次套用（與點擊班別按鈕效果相同）。',
+      '若要新增或修改快捷鍵：開啟「設定 → 班別設定」，於「⌨️ 快捷鍵」欄位按下欲使用的按鍵後儲存。',
+    ],
+    images: [
+      {
+        src: '/guide/07-hotkeys-apply.png',
+        alt: '選取多日後以快捷鍵套用班別',
+        caption: '範例：操作列顯示快捷鍵標示，可按鍵快速套用',
+      },
+      {
+        src: '/guide/08-hotkeys-settings.png',
+        alt: '班別設定中為班別指定快捷鍵',
+        caption: '範例：在班別設定為各班別綁定快捷鍵（如夜班＝3）',
+      },
+    ],
   },
   {
     id: 'drag',
+    category: 'operate',
     title: '拖曳交換班別',
     icon: <ArrowRightLeft className="w-5 h-5" />,
     paragraphs: [
@@ -76,12 +133,17 @@ const GUIDE_SECTIONS: GuideSection[] = [
       '按住拖曳至目標日期格子上方，放開即可交換（或覆寫至該日）。',
       '拖曳過程中會出現半透明預覽，方便確認放置位置。',
     ],
-    imageSrc: '/guide/02-drag-swap.png',
-    imageAlt: '以拖曳把手交換兩個日期的班別',
-    imageCaption: '範例：抓住六點把手拖動班別進行交換',
+    images: [
+      {
+        src: '/guide/02-drag-swap.png',
+        alt: '以拖曳把手交換兩個日期的班別',
+        caption: '範例：抓住六點把手拖動班別進行交換',
+      },
+    ],
   },
   {
     id: 'pin',
+    category: 'operate',
     title: '大頭針釘選班別',
     icon: <Pin className="w-5 h-5" />,
     paragraphs: [
@@ -93,31 +155,17 @@ const GUIDE_SECTIONS: GuideSection[] = [
       '再次點擊同一圖示可取消釘選。',
       '需要保留固定假日、特定班次時，建議先釘選再進行批次調整。',
     ],
-    imageSrc: '/guide/03-pin-shifts.png',
-    imageAlt: '以大頭針釘選鎖定特定日期的班別',
-    imageCaption: '範例：橘色大頭針表示該日班別已鎖定',
-  },
-  {
-    id: 'audit',
-    title: '檢視可能不合規排班',
-    icon: <ShieldCheck className="w-5 h-5" />,
-    paragraphs: [
-      '排班過程中，系統會即時依所選工時制度（一般／2 週／4 週／8 週變形工時）與內建規則進行模擬檢核。',
-      '「班表檢核表」會彙總正常工時、延長工時、最大連班天數與例休天數；若有觸發項目，頂部會顯示需留意提示。',
-      '下方「規則檢核明細／風險提示」會列出法條與對應日期，可點選對應日期連結，快速定位問題日子。',
+    images: [
+      {
+        src: '/guide/03-pin-shifts.png',
+        alt: '以大頭針釘選鎖定特定日期的班別',
+        caption: '範例：橘色大頭針表示該日班別已鎖定',
+      },
     ],
-    steps: [
-      '先確認上方已選對正確的工時制度與同仁。',
-      '檢視班表檢核表：紅色指標代表超出規則上限（例如週期正常工時超標）。',
-      '展開規則檢核明細閱讀說明，並點「對應日期」在班表上定位。',
-      '可點「模擬檢核：發現 N 項需留意（點擊查看法規說明）」進一步了解相關規則依據；完整法條摘要亦見頂部「說明 → 法規說明」。',
-    ],
-    imageSrc: '/guide/04-labor-audit.png',
-    imageAlt: '班表檢核表與規則檢核明細畫面',
-    imageCaption: '範例：週期正常工時超標時的模擬檢核畫面',
   },
   {
     id: 'overtime',
+    category: 'operate',
     title: '紀錄加班與換休',
     icon: <Clock3 className="w-5 h-5" />,
     paragraphs: [
@@ -133,12 +181,41 @@ const GUIDE_SECTIONS: GuideSection[] = [
       '用「−」取消加班；工作班且已無加班時，「−」改為支用換休。',
       '再到班表檢核表確認「延長工時」與「例假日原則禁止加班」等提示。',
     ],
-    imageSrc: '/guide/05-overtime-comp.png',
-    imageAlt: '班別卡片底部加減鈕用於登錄加班或換休',
-    imageCaption: '範例：卡片底部的「＋」可用於紀錄加班（顯示如 8H ＋）',
+    images: [
+      {
+        src: '/guide/05-overtime-comp.png',
+        alt: '班別卡片底部加減鈕用於登錄加班或換休',
+        caption: '範例：卡片底部的「＋」可用於紀錄加班（顯示如 8H ＋）',
+      },
+    ],
+  },
+  {
+    id: 'audit',
+    category: 'interpret',
+    title: '檢視可能不合規排班',
+    icon: <ShieldCheck className="w-5 h-5" />,
+    paragraphs: [
+      '排班過程中，系統會即時依所選工時制度（一般／2 週／4 週／8 週變形工時）與內建規則進行模擬檢核。',
+      '「班表檢核表」會彙總正常工時、延長工時、最大連班天數與例休天數；若有觸發項目，頂部會顯示需留意提示。',
+      '下方「規則檢核明細／風險提示」會列出法條與對應日期，可點選對應日期連結，快速定位問題日子。',
+    ],
+    steps: [
+      '先確認上方已選對正確的工時制度與同仁。',
+      '檢視班表檢核表：紅色指標代表超出規則上限（例如週期正常工時超標）。',
+      '展開規則檢核明細閱讀說明，並點「對應日期」在班表上定位。',
+      '可點「模擬檢核：發現 N 項需留意（點擊查看法規說明）」進一步了解相關規則依據；完整法條摘要亦見頂部「說明 → 法規說明」。',
+    ],
+    images: [
+      {
+        src: '/guide/04-labor-audit.png',
+        alt: '班表檢核表與規則檢核明細畫面',
+        caption: '範例：週期正常工時超標時的模擬檢核畫面',
+      },
+    ],
   },
   {
     id: 'ot-warning',
+    category: 'interpret',
     title: '警告加班時數',
     icon: <Gauge className="w-5 h-5" />,
     paragraphs: [
@@ -151,9 +228,13 @@ const GUIDE_SECTIONS: GuideSection[] = [
       '閱讀下方規則檢核明細（含例假加班警告）與對應日期。',
       '回到班表以「−」取消過量或不宜之加班，或在其他日支用換休，再確認警示是否解除。',
     ],
-    imageSrc: '/guide/06-overtime-warning.png',
-    imageAlt: '延長工時超限時的班表檢核與規則提示',
-    imageCaption: '範例：延長工時 64H 超過 46H 上限時的紅色警告',
+    images: [
+      {
+        src: '/guide/06-overtime-warning.png',
+        alt: '延長工時超限時的班表檢核與規則提示',
+        caption: '範例：延長工時 64H 超過 46H 上限時的紅色警告',
+      },
+    ],
   },
 ];
 
@@ -249,7 +330,7 @@ const ImageLightbox: React.FC<{
 };
 
 /**
- * 排班操作使用說明：僅含點選、拖曳、釘選、檢核與加班等操作章節。
+ * 排班使用說明：側欄分為操作說明與資訊判讀兩類。
  *
  * @param props.isOpen 是否顯示
  * @param props.onClose 關閉回呼
@@ -268,6 +349,50 @@ export const UserGuideModal: React.FC<UserGuideModalProps> = ({ isOpen, onClose 
   const activeSection =
     GUIDE_SECTIONS.find((section) => section.id === activeSectionId) ?? GUIDE_SECTIONS[0];
 
+  const operateSections = GUIDE_SECTIONS.filter((section) => section.category === 'operate');
+  const interpretSections = GUIDE_SECTIONS.filter((section) => section.category === 'interpret');
+
+  /**
+   * 渲染某一分類下的章節按鈕列。
+   *
+   * @param category 分類
+   * @param sections 該分類章節
+   * @param startIndex 側欄顯示編號起點（1-based）
+   */
+  const renderCategoryNav = (
+    category: GuideCategory,
+    sections: GuideSection[],
+    startIndex: number
+  ) => (
+    <div className="space-y-1 min-w-max sm:min-w-0">
+      <p className="px-1 pt-1 pb-0.5 text-[11px] font-bold tracking-wide text-[#8A8A70] uppercase">
+        {CATEGORY_LABELS[category]}
+      </p>
+      {sections.map((section, index) => {
+        const isActive = section.id === activeSection.id;
+        return (
+          <button
+            key={section.id}
+            type="button"
+            onClick={() => setActiveSectionId(section.id)}
+            className={`w-full shrink-0 px-3 py-2.5 rounded-xl text-left text-sm font-bold transition-colors cursor-pointer flex items-center gap-2 ${
+              isActive
+                ? 'bg-[#5A5A40] text-white'
+                : 'bg-[#F8F7EB] text-[#5A5A40] hover:bg-[#E9E7D4]'
+            }`}
+          >
+            <span className={`inline-flex ${isActive ? 'text-white' : 'text-[#5A5A40]'}`}>
+              {section.icon}
+            </span>
+            <span>
+              {startIndex + index}. {section.title}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white border border-[#E9E7D4] rounded-2xl max-w-4xl w-full p-5 sm:p-6 shadow-xl text-[#2D2D2D] space-y-4 my-6 animate-in zoom-in-95 duration-200">
@@ -278,7 +403,7 @@ export const UserGuideModal: React.FC<UserGuideModalProps> = ({ isOpen, onClose 
             </div>
             <div>
               <h2 className="text-xl font-bold text-[#2D2D2D] font-serif">排班模擬系統 — 使用說明</h2>
-              <p className="text-sm text-[#8A8A70]">點選換班、拖曳交換、釘選鎖定、規則檢核與加班換休</p>
+              <p className="text-sm text-[#8A8A70]">操作說明與資訊判讀</p>
             </div>
           </div>
           <button
@@ -292,36 +417,16 @@ export const UserGuideModal: React.FC<UserGuideModalProps> = ({ isOpen, onClose 
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 min-h-112">
-          <nav className="sm:w-52 shrink-0 flex sm:flex-col gap-1 overflow-x-auto sm:overflow-visible pb-1 sm:pb-0">
-            {GUIDE_SECTIONS.map((section, index) => {
-              const isActive = section.id === activeSection.id;
-              return (
-                <button
-                  key={section.id}
-                  type="button"
-                  onClick={() => setActiveSectionId(section.id)}
-                  className={`shrink-0 px-3 py-2.5 rounded-xl text-left text-sm font-bold transition-colors cursor-pointer flex items-center gap-2 ${
-                    isActive
-                      ? 'bg-[#5A5A40] text-white'
-                      : 'bg-[#F8F7EB] text-[#5A5A40] hover:bg-[#E9E7D4]'
-                  }`}
-                >
-                  <span className={`inline-flex ${isActive ? 'text-white' : 'text-[#5A5A40]'}`}>
-                    {section.icon}
-                  </span>
-                  <span>
-                    {index + 1}. {section.title}
-                  </span>
-                </button>
-              );
-            })}
+          <nav className="sm:w-56 shrink-0 flex sm:flex-col gap-3 overflow-x-auto sm:overflow-visible pb-1 sm:pb-0">
+            {renderCategoryNav('operate', operateSections, 1)}
+            {renderCategoryNav('interpret', interpretSections, operateSections.length + 1)}
           </nav>
 
           <div className="flex-1 max-h-128 overflow-y-auto pr-1 space-y-4 text-sm leading-relaxed">
             <div className="rounded-xl border border-[#E9E7D4] bg-[#F8F7EB] px-3 py-2 flex items-start gap-2 text-[#5A5A40]">
               <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
               <p>
-                預覽圖會顯示完整畫面；若要看清細節，可
+                目前為「{CATEGORY_LABELS[activeSection.category]}」。預覽圖會顯示完整畫面；若要看清細節，可
                 <strong className="font-bold">點擊放大</strong>
                 。放大後可按右上角關閉、點擊背景或按 Esc 關閉。
               </p>
@@ -345,17 +450,17 @@ export const UserGuideModal: React.FC<UserGuideModalProps> = ({ isOpen, onClose 
                 ))}
               </ol>
 
-              <GuideImageThumb
-                src={activeSection.imageSrc}
-                alt={activeSection.imageAlt}
-                caption={activeSection.imageCaption}
-                onExpand={() =>
-                  setLightbox({
-                    src: activeSection.imageSrc,
-                    alt: activeSection.imageAlt,
-                  })
-                }
-              />
+              <div className="space-y-4">
+                {activeSection.images.map((image) => (
+                  <GuideImageThumb
+                    key={image.src}
+                    src={image.src}
+                    alt={image.alt}
+                    caption={image.caption}
+                    onExpand={() => setLightbox({ src: image.src, alt: image.alt })}
+                  />
+                ))}
+              </div>
             </section>
           </div>
         </div>

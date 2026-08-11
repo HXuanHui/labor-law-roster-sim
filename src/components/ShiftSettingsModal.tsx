@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { ShiftType } from '../types';
-import { Layers, Plus, Trash2, X, Edit2, Check, Clock } from 'lucide-react';
+import { Layers, Plus, Trash2, X, Edit2, Check, Clock, Keyboard } from 'lucide-react';
 import { getContrastingTextColor } from '../utils/colorContrast';
 import { SYSTEM_PROTECTED_SHIFT_IDS } from '../constants/shifts';
+import { findShortcutConflict } from '../utils/shiftShortcuts';
+import { ShortcutKeyField } from './ShortcutKeyField';
 
 interface ShiftSettingsModalProps {
   isOpen: boolean;
@@ -11,8 +13,18 @@ interface ShiftSettingsModalProps {
   onAddShiftType: (st: ShiftType) => void;
   onUpdateShiftType: (st: ShiftType) => void;
   onDeleteShiftType: (id: string) => void;
+  /** 「空」清除排班的快捷鍵。 */
+  emptyShiftShortcutKey: string;
+  /**
+   * 更新「空」清除快捷鍵。
+   * @param key 新快捷鍵（空字串＝取消）
+   */
+  onUpdateEmptyShiftShortcut: (key: string) => void;
 }
 
+/**
+ * 班別時間、類別與快捷鍵設定 Modal。
+ */
 export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
   isOpen,
   onClose,
@@ -20,6 +32,8 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
   onAddShiftType,
   onUpdateShiftType,
   onDeleteShiftType,
+  emptyShiftShortcutKey,
+  onUpdateEmptyShiftShortcut,
 }) => {
   // New shift form state
   const [code, setCode] = useState('');
@@ -30,10 +44,16 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
   const [breakHours, setBreakHours] = useState(1);
   const [color, setColor] = useState('#5A5A40');
   const [category, setCategory] = useState<'work' | 'rest' | 'mandatory' | 'national_holiday'>('work');
+  const [shortcutKey, setShortcutKey] = useState('');
+  /** 表單／儲存時的快捷鍵衝突提示 */
+  const [shortcutError, setShortcutError] = useState<string | null>(null);
 
   // Editing shift state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<ShiftType>>({});
+  /** 是否正在編輯「空」清除快捷鍵 */
+  const [editingEmpty, setEditingEmpty] = useState(false);
+  const [editEmptyKey, setEditEmptyKey] = useState('');
 
   if (!isOpen) return null;
 
@@ -63,9 +83,19 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
     }
   };
 
+  /**
+   * 新增自訂班別；快捷鍵衝突時中止並提示。
+   * @param e 表單事件
+   */
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!code.trim() || !name.trim()) return;
+
+    const conflict = findShortcutConflict(shortcutKey, shiftTypes, emptyShiftShortcutKey, null);
+    if (conflict) {
+      setShortcutError(conflict);
+      return;
+    }
 
     onAddShiftType({
       id: `shift_custom_${Date.now()}`,
@@ -79,15 +109,28 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
       // 依背景亮度寫入深／淺字色，供匯出等仍讀 textColor 的場景使用
       textColor: getContrastingTextColor(color),
       category,
+      shortcutKey: shortcutKey || '',
     });
 
     setCode('');
     setName('');
+    setShortcutKey('');
+    setShortcutError(null);
   };
 
   const handleStartEdit = (st: ShiftType) => {
+    setEditingEmpty(false);
     setEditingId(st.id);
     setEditForm({ ...st });
+    setShortcutError(null);
+  };
+
+  /** 開始編輯「空」清除快捷鍵。 */
+  const handleStartEditEmpty = () => {
+    setEditingId(null);
+    setEditingEmpty(true);
+    setEditEmptyKey(emptyShiftShortcutKey || '');
+    setShortcutError(null);
   };
 
   /**
@@ -95,14 +138,34 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
    */
   const handleSaveEdit = () => {
     if (!editingId || !editForm.code || !editForm.name) return;
+    const nextKey = editForm.shortcutKey || '';
+    const conflict = findShortcutConflict(nextKey, shiftTypes, emptyShiftShortcutKey, editingId);
+    if (conflict) {
+      setShortcutError(conflict);
+      return;
+    }
     const nextColor = editForm.color || '#5A5A40';
     onUpdateShiftType({
       ...(editForm as ShiftType),
+      shortcutKey: nextKey,
       color: nextColor,
       textColor: getContrastingTextColor(nextColor),
     });
     setEditingId(null);
     setEditForm({});
+    setShortcutError(null);
+  };
+
+  /** 儲存「空」清除快捷鍵。 */
+  const handleSaveEmptyShortcut = () => {
+    const conflict = findShortcutConflict(editEmptyKey, shiftTypes, emptyShiftShortcutKey, null, true);
+    if (conflict) {
+      setShortcutError(conflict);
+      return;
+    }
+    onUpdateEmptyShiftShortcut(editEmptyKey || '');
+    setEditingEmpty(false);
+    setShortcutError(null);
   };
 
   return (
@@ -115,7 +178,9 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
             </div>
             <div>
               <h2 className="text-xl font-bold text-[#2D2D2D] font-serif">班別時間與類別設定</h2>
-              <p className="text-sm text-[#8A8A70]">可自訂或編輯早/中/夜班、長班與休息日之上下班時間、工時與代表色彩</p>
+              <p className="text-sm text-[#8A8A70]">
+                可自訂班別時間、色彩，以及選取格子後快速套用的快捷鍵（0–9、A–Z、,./;'[]\=-）
+              </p>
             </div>
           </div>
           <button
@@ -133,7 +198,7 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
             <span>新增班別代碼與時間</span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <div>
               <label className="block text-sm text-[#8A8A70] mb-1">班別簡碼 (例：早)</label>
               <input
@@ -177,6 +242,21 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
                 className="w-full h-9 bg-white border border-[#D9D7C2] rounded-xl cursor-pointer p-1"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-[#8A8A70] mb-1 flex items-center gap-1">
+                <Keyboard className="w-3.5 h-3.5" />
+                快捷鍵
+              </label>
+              <ShortcutKeyField
+                value={shortcutKey}
+                onChange={(k) => {
+                  setShortcutKey(k);
+                  setShortcutError(null);
+                }}
+                className="bg-white rounded-xl py-2"
               />
             </div>
           </div>
@@ -235,6 +315,10 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
             </div>
           )}
 
+          {shortcutError && !editingId && !editingEmpty && (
+            <p className="text-sm text-[#D17A60]">快捷鍵衝突：{shortcutError}</p>
+          )}
+
           <div className="flex justify-end pt-1">
             <button
               type="submit"
@@ -248,8 +332,8 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
 
         {/* Existing Shifts List with Edit Capability */}
         <div className="space-y-2">
-          <div className="text-sm font-bold text-[#8A8A70]">班別與時間清單（點擊編輯圖示可調整時間）</div>
-          <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+          <div className="text-sm font-bold text-[#8A8A70]">班別與時間清單（點擊編輯圖示可調整時間與快捷鍵）</div>
+          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
             {shiftTypes.map((st) => {
               const isEditing = editingId === st.id;
 
@@ -264,7 +348,7 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
                       <span className="text-xs text-[#8A8A70] font-mono">ID: {st.id}</span>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                       <div>
                         <label className="block text-xs text-[#8A8A70] mb-0.5">簡碼</label>
                         <input
@@ -301,6 +385,16 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
                           value={editForm.workHours ?? 8}
                           onChange={(e) => setEditForm((prev) => ({ ...prev, workHours: Number(e.target.value) }))}
                           className="w-full bg-[#F8F7EB] border border-[#D9D7C2] rounded-lg px-2 py-1 text-sm font-mono font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-[#8A8A70] mb-0.5">快捷鍵</label>
+                        <ShortcutKeyField
+                          value={editForm.shortcutKey || ''}
+                          onChange={(k) => {
+                            setEditForm((prev) => ({ ...prev, shortcutKey: k }));
+                            setShortcutError(null);
+                          }}
                         />
                       </div>
                     </div>
@@ -340,9 +434,16 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
                       </div>
                     )}
 
+                    {shortcutError && editingId === st.id && (
+                      <p className="text-sm text-[#D17A60]">快捷鍵衝突：{shortcutError}</p>
+                    )}
+
                     <div className="flex justify-end space-x-2 pt-1">
                       <button
-                        onClick={() => setEditingId(null)}
+                        onClick={() => {
+                          setEditingId(null);
+                          setShortcutError(null);
+                        }}
                         className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition-colors"
                       >
                         取消
@@ -375,8 +476,17 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
                       {st.code}
                     </div>
                     <div>
-                      <div className="font-semibold text-[#2D2D2D] flex items-center gap-2">
+                      <div className="font-semibold text-[#2D2D2D] flex items-center gap-2 flex-wrap">
                         <span>{st.name}</span>
+                        {st.shortcutKey ? (
+                          <span
+                            className="text-xs text-[#5A5A40] font-mono bg-[#5A5A40]/10 px-1.5 py-0.5 rounded flex items-center gap-1"
+                            title="套用快捷鍵"
+                          >
+                            <Keyboard className="w-3 h-3" />
+                            {st.shortcutKey}
+                          </span>
+                        ) : null}
                         {st.category === 'work' && (
                           <span className="text-xs text-[#5A5A40] font-mono bg-[#5A5A40]/10 px-1.5 py-0.5 rounded flex items-center gap-1">
                             <Clock className="w-3 h-3" />
@@ -402,7 +512,7 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
                     <button
                       onClick={() => handleStartEdit(st)}
                       className="p-1.5 text-[#5A5A40] hover:bg-[#5A5A40]/10 rounded-lg transition-colors"
-                      title="編輯時間與名稱"
+                      title="編輯時間、名稱與快捷鍵"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
@@ -420,6 +530,73 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
                 </div>
               );
             })}
+
+            {/* 「空」清除快捷鍵列 */}
+            {editingEmpty ? (
+              <div className="bg-white p-3.5 rounded-xl border-2 border-[#5A5A40] space-y-3 shadow-md">
+                <div className="text-sm font-bold text-[#5A5A40] border-b pb-1.5">編輯：空（清除排班）快捷鍵</div>
+                <div className="max-w-[8rem]">
+                  <label className="block text-xs text-[#8A8A70] mb-0.5">快捷鍵</label>
+                  <ShortcutKeyField
+                    value={editEmptyKey}
+                    onChange={(k) => {
+                      setEditEmptyKey(k);
+                      setShortcutError(null);
+                    }}
+                  />
+                </div>
+                {shortcutError && (
+                  <p className="text-sm text-[#D17A60]">快捷鍵衝突：{shortcutError}</p>
+                )}
+                <div className="flex justify-end space-x-2 pt-1">
+                  <button
+                    onClick={() => {
+                      setEditingEmpty(false);
+                      setShortcutError(null);
+                    }}
+                    className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition-colors"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={handleSaveEmptyShortcut}
+                    className="px-3 py-1 bg-[#5A5A40] hover:bg-[#484833] text-white text-sm font-bold rounded-lg transition-colors flex items-center gap-1"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>儲存修改</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-[#F8F7EB] p-3 rounded-xl border border-[#E9E7D4] flex items-center justify-between text-sm">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 rounded-lg font-bold flex items-center justify-center font-mono text-sm shadow-sm bg-slate-600 text-slate-100">
+                    空
+                  </div>
+                  <div>
+                    <div className="font-semibold text-[#2D2D2D] flex items-center gap-2">
+                      <span>清除排班（空）</span>
+                      {emptyShiftShortcutKey ? (
+                        <span className="text-xs text-[#5A5A40] font-mono bg-[#5A5A40]/10 px-1.5 py-0.5 rounded flex items-center gap-1">
+                          <Keyboard className="w-3 h-3" />
+                          {emptyShiftShortcutKey}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="text-xs text-[#8A8A70] font-mono mt-0.5">
+                      選取格子後以此快捷鍵清除（非休／例／國）
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={handleStartEditEmpty}
+                  className="p-1.5 text-[#5A5A40] hover:bg-[#5A5A40]/10 rounded-lg transition-colors"
+                  title="編輯清除快捷鍵"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

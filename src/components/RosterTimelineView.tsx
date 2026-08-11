@@ -4,6 +4,11 @@ import { ShiftBlockTile } from './ShiftBlockTile';
 import { findNearestLegalDate, getEffectiveShift, isEmptyShiftTypeId, requiresMandatoryOvertimeCaution } from '../utils/laborLaws';
 import { EMPTY_SHIFT_TYPE_ID } from '../constants/shifts';
 import { getContrastingTextColor } from '../utils/colorContrast';
+import {
+  getShortcutKeyFromEvent,
+  isEditableKeyboardTarget,
+  resolveShiftIdByShortcut,
+} from '../utils/shiftShortcuts';
 import { Users, ChevronLeft, ChevronRight, Layers, XCircle, Plus } from 'lucide-react';
 import { addDays, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
 import { getTaiwanWeekdayName } from '../utils/perpetualCalendar';
@@ -20,6 +25,8 @@ interface RosterTimelineViewProps {
   employees: Employee[];
   /** 全部班別定義。 */
   allShiftTypes: ShiftType[];
+  /** 「空」清除排班快捷鍵。 */
+  emptyShiftShortcutKey?: string;
   /** 國定／自訂假日。 */
   nationalHolidays: NationalHoliday[];
   /** 指定同仁單日選班回呼。 */
@@ -60,6 +67,7 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
   daysCount,
   employees,
   allShiftTypes,
+  emptyShiftShortcutKey = '',
   nationalHolidays,
   onSelectShift,
   onRequestMakeupShift,
@@ -81,16 +89,55 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
     { empId: string; dateStr: string }[]
   >([]);
 
-  // Esc 清空選取
+  // Esc 清空選取；有選取時按快捷鍵套用對應班別
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' || e.key === 'Esc') {
         setSelectedCells([]);
+        return;
       }
+
+      if (selectedCells.length === 0) return;
+      if (isEditableKeyboardTarget(e.target)) return;
+
+      const pressed = getShortcutKeyFromEvent(e);
+      if (!pressed) return;
+
+      const shiftTypeId = resolveShiftIdByShortcut(
+        pressed,
+        allShiftTypes,
+        emptyShiftShortcutKey
+      );
+      if (!shiftTypeId) return;
+
+      e.preventDefault();
+      const unpinned = selectedCells.filter(({ empId, dateStr }) => {
+        const emp = employees.find((x) => x.id === empId);
+        return !emp?.schedules[dateStr]?.isPinned;
+      });
+      if (unpinned.length === 0) return;
+
+      if (shiftTypeId === 'shift_national_holiday_makeup' && onRequestMakeupShift) {
+        onRequestMakeupShift(unpinned);
+        setSelectedCells([]);
+        return;
+      }
+
+      unpinned.forEach(({ empId, dateStr }) => {
+        onSelectShift(empId, dateStr, shiftTypeId);
+      });
+      setSelectedCells([]);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [
+    selectedCells,
+    allShiftTypes,
+    emptyShiftShortcutKey,
+    employees,
+    onRequestMakeupShift,
+    onSelectShift,
+  ]);
 
   const start = parseISO(startDateStr);
   const datesList: string[] = [];
@@ -439,7 +486,7 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
                 已選取{' '}
                 <span className="text-yellow-400 font-mono text-sm">{selectedCells.length}</span> 格
               </div>
-              <p className="text-xs text-gray-300">點選班別即可套用（Esc 取消）</p>
+              <p className="text-xs text-gray-300">點選班別或按快捷鍵套用（Esc 取消）</p>
             </div>
             <button
               onClick={() => setSelectedCells([])}
@@ -454,19 +501,37 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
               <button
                 key={st.id}
                 onClick={() => handleApplyBatchShift(st.id)}
-                className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold transition-transform hover:scale-105 active:scale-95 shadow cursor-pointer border border-white/20 flex items-center justify-center"
+                className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold transition-transform hover:scale-105 active:scale-95 shadow cursor-pointer border border-white/20 flex items-center justify-center gap-1"
                 style={{ backgroundColor: st.color, color: getContrastingTextColor(st.color) }}
-                title={`批次設置為：${st.name}`}
+                title={
+                  st.shortcutKey
+                    ? `批次設置為：${st.name}（快捷鍵 ${st.shortcutKey}）`
+                    : `批次設置為：${st.name}`
+                }
               >
-                {st.code}
+                <span>{st.code}</span>
+                {st.shortcutKey ? (
+                  <span className="hidden sm:inline opacity-70 font-mono text-[10px] leading-none">
+                    {st.shortcutKey}
+                  </span>
+                ) : null}
               </button>
             ))}
             <button
               onClick={() => handleApplyBatchShift(EMPTY_SHIFT_TYPE_ID)}
-              className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors cursor-pointer border border-slate-500"
-              title="清除當天排班（非休息日／例假／國定假日）"
+              className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors cursor-pointer border border-slate-500 flex items-center gap-1"
+              title={
+                emptyShiftShortcutKey
+                  ? `清除當天排班（快捷鍵 ${emptyShiftShortcutKey}）`
+                  : '清除當天排班（非休息日／例假／國定假日）'
+              }
             >
-              空
+              <span>空</span>
+              {emptyShiftShortcutKey ? (
+                <span className="hidden sm:inline opacity-70 font-mono text-[10px] leading-none">
+                  {emptyShiftShortcutKey}
+                </span>
+              ) : null}
             </button>
             {onOpenShiftModal && (
               <button

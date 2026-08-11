@@ -20,6 +20,11 @@ export interface ShiftType {
    * national_holiday_makeup＝國定假日補假「調」：計薪視同國假，審查時可依 substitutesFor 計入休／例配額。
    */
   category: 'work' | 'rest' | 'mandatory' | 'national_holiday' | 'national_holiday_makeup';
+  /**
+   * 選取格子後可快速套用此班別的快捷鍵（單一字元）。
+   * 允許：0–9、A–Z、,./;'[]\=-；空字串表示未設定。
+   */
+  shortcutKey?: string;
 }
 
 export interface DayShift {

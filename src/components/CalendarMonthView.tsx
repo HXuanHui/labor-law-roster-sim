@@ -6,6 +6,11 @@ import { findNearestLegalDate, getEffectiveShift, getCycleInfoForDate, isEmptySh
 import { EMPTY_SHIFT_TYPE_ID } from '../constants/shifts';
 import { getContrastingTextColor } from '../utils/colorContrast';
 import {
+  getShortcutKeyFromEvent,
+  isEditableKeyboardTarget,
+  resolveShiftIdByShortcut,
+} from '../utils/shiftShortcuts';
+import {
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
@@ -33,6 +38,8 @@ interface CalendarMonthViewProps {
   currentSystem?: ScheduleSystemType;
   /** 全部班別定義。 */
   allShiftTypes: ShiftType[];
+  /** 「空」清除排班快捷鍵。 */
+  emptyShiftShortcutKey?: string;
   /** 國定／自訂假日。 */
   nationalHolidays: NationalHoliday[];
   /** 單日選班回呼。 */
@@ -79,6 +86,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
   selectedEmployee,
   currentSystem,
   allShiftTypes,
+  emptyShiftShortcutKey = '',
   nationalHolidays,
   onSelectShift,
   onBatchSelectShifts,
@@ -102,19 +110,65 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
   /** 窄螢幕年月導覽面板是否展開 */
   const [navOpen, setNavOpen] = useState(false);
 
-  // Esc 取消多選；桌面寬度時關閉導覽面板
+  // Esc 取消多選；有選取時按快捷鍵套用對應班別；桌面寬度時關閉導覽面板
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' || e.key === 'Esc') {
         setSelectedDates([]);
         setLastClickedDate(null);
         setNavOpen(false);
+        return;
       }
+
+      // 輸入框內不攔截；無選取時不做套用
+      if (selectedDates.length === 0) return;
+      if (isEditableKeyboardTarget(e.target)) return;
+
+      const pressed = getShortcutKeyFromEvent(e);
+      if (!pressed) return;
+
+      const shiftTypeId = resolveShiftIdByShortcut(
+        pressed,
+        allShiftTypes,
+        emptyShiftShortcutKey
+      );
+      if (!shiftTypeId) return;
+
+      e.preventDefault();
+      // 與黑列按鈕相同路徑：略過釘選、「調」走挑選流程
+      const unpinnedDates = selectedDates.filter(
+        (dStr) => !selectedEmployee.schedules[dStr]?.isPinned
+      );
+      if (unpinnedDates.length === 0) return;
+
+      if (shiftTypeId === 'shift_national_holiday_makeup' && onRequestMakeupShift) {
+        onRequestMakeupShift(unpinnedDates);
+        setSelectedDates([]);
+        return;
+      }
+
+      if (onBatchSelectShifts) {
+        onBatchSelectShifts(unpinnedDates, shiftTypeId);
+      } else {
+        unpinnedDates.forEach((dStr) => {
+          onSelectShift(dStr, shiftTypeId);
+        });
+      }
+      setSelectedDates([]);
+      setLastClickedDate(null);
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [
+    selectedDates,
+    allShiftTypes,
+    emptyShiftShortcutKey,
+    selectedEmployee.schedules,
+    onRequestMakeupShift,
+    onBatchSelectShifts,
+    onSelectShift,
+  ]);
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 640px)');
@@ -717,9 +771,9 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                 <span className="text-yellow-400 font-mono text-sm">{selectedDates.length}</span> 日
               </div>
               <p className="text-xs text-gray-300 hidden md:block">
-                點選班別套用；右側 + 可新增班別
+                點選班別或按快捷鍵套用；右側 + 可新增班別
               </p>
-              <p className="text-xs text-gray-300 block md:hidden">點選班別套用</p>
+              <p className="text-xs text-gray-300 block md:hidden">點選班別或快捷鍵套用</p>
             </div>
             <button
               onClick={() => {
@@ -737,19 +791,37 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
               <button
                 key={st.id}
                 onClick={() => handleApplyBatchShift(st.id)}
-                className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold transition-transform hover:scale-105 active:scale-95 shadow cursor-pointer border border-white/20 flex items-center justify-center"
+                className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold transition-transform hover:scale-105 active:scale-95 shadow cursor-pointer border border-white/20 flex items-center justify-center gap-1"
                 style={{ backgroundColor: st.color, color: getContrastingTextColor(st.color) }}
-                title={`批次設置為：${st.name}`}
+                title={
+                  st.shortcutKey
+                    ? `批次設置為：${st.name}（快捷鍵 ${st.shortcutKey}）`
+                    : `批次設置為：${st.name}`
+                }
               >
-                {st.code}
+                <span>{st.code}</span>
+                {st.shortcutKey ? (
+                  <span className="hidden sm:inline opacity-70 font-mono text-[10px] leading-none">
+                    {st.shortcutKey}
+                  </span>
+                ) : null}
               </button>
             ))}
             <button
               onClick={() => handleApplyBatchShift(EMPTY_SHIFT_TYPE_ID)}
-              className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors cursor-pointer border border-slate-500"
-              title="清除當天排班（非休息日／例假／國定假日）"
+              className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors cursor-pointer border border-slate-500 flex items-center gap-1"
+              title={
+                emptyShiftShortcutKey
+                  ? `清除當天排班（快捷鍵 ${emptyShiftShortcutKey}）`
+                  : '清除當天排班（非休息日／例假／國定假日）'
+              }
             >
-              空
+              <span>空</span>
+              {emptyShiftShortcutKey ? (
+                <span className="hidden sm:inline opacity-70 font-mono text-[10px] leading-none">
+                  {emptyShiftShortcutKey}
+                </span>
+              ) : null}
             </button>
             {onOpenShiftModal && (
               <button

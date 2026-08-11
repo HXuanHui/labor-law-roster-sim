@@ -8,7 +8,7 @@ import {
   ShiftType,
   SnapResult,
 } from './types';
-import { DEFAULT_SHIFTS, EMPTY_SHIFT_TYPE_ID, ensureDefaultShifts, resolveHolidayShiftTypeId } from './constants/shifts';
+import { DEFAULT_SHIFTS, EMPTY_SHIFT_TYPE_ID, EMPTY_SHIFT_SHORTCUT_STORAGE_KEY, DEFAULT_EMPTY_SHIFT_SHORTCUT_KEY, ensureDefaultShifts, resolveHolidayShiftTypeId } from './constants/shifts';
 import { SYSTEM_CONFIGS } from './constants/systems';
 import {
   getMaxDailyOvertimeHours,
@@ -92,8 +92,17 @@ export default function App() {
   // Data states with LocalStorage persistence
   const [shiftTypes, setShiftTypes] = useState<ShiftType[]>(() => {
     const saved = localStorage.getItem('perpetual_shifts');
-    // 合併內建班別，確保舊資料也能取得新增的「調」班
+    // 合併內建班別，確保舊資料也能取得新增的「調」班與預設快捷鍵
     return ensureDefaultShifts(saved ? JSON.parse(saved) : DEFAULT_SHIFTS);
+  });
+
+  /**
+   * 「空」清除鈕快捷鍵（非 ShiftType，獨立持久化）。
+   * LocalStorage 無值時用預設 0；空字串表示使用者刻意取消。
+   */
+  const [emptyShiftShortcutKey, setEmptyShiftShortcutKey] = useState<string>(() => {
+    const saved = localStorage.getItem(EMPTY_SHIFT_SHORTCUT_STORAGE_KEY);
+    return saved !== null ? saved : DEFAULT_EMPTY_SHIFT_SHORTCUT_KEY;
   });
 
   const [nationalHolidays, setNationalHolidays] = useState<NationalHoliday[]>(() => {
@@ -151,8 +160,10 @@ export default function App() {
       localStorage.removeItem('perpetual_national_holidays');
       localStorage.removeItem('perpetual_employees');
       localStorage.removeItem('perpetual_setup_completed');
+      localStorage.removeItem(EMPTY_SHIFT_SHORTCUT_STORAGE_KEY);
 
       setShiftTypes(DEFAULT_SHIFTS);
+      setEmptyShiftShortcutKey(DEFAULT_EMPTY_SHIFT_SHORTCUT_KEY);
       setNationalHolidays(INITIAL_TAIWAN_HOLIDAYS);
       setEmployees([]);
       setSelectedEmployeeId('');
@@ -174,6 +185,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('perpetual_shifts', JSON.stringify(shiftTypes));
   }, [shiftTypes]);
+
+  useEffect(() => {
+    localStorage.setItem(EMPTY_SHIFT_SHORTCUT_STORAGE_KEY, emptyShiftShortcutKey);
+  }, [emptyShiftShortcutKey]);
 
   useEffect(() => {
     localStorage.setItem('perpetual_national_holidays', JSON.stringify(nationalHolidays));
@@ -917,7 +932,11 @@ export default function App() {
 
   // Export JSON file
   const handleExportJSON = () => {
-    const dataStr = JSON.stringify({ currentSystem, employees, shiftTypes, nationalHolidays }, null, 2);
+    const dataStr = JSON.stringify(
+      { currentSystem, employees, shiftTypes, nationalHolidays, emptyShiftShortcutKey },
+      null,
+      2
+    );
     const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -1131,6 +1150,7 @@ export default function App() {
                 selectedEmployee={selectedEmployee}
                 currentSystem={currentSystem}
                 allShiftTypes={shiftTypes}
+                emptyShiftShortcutKey={emptyShiftShortcutKey}
                 nationalHolidays={nationalHolidays}
                 onSelectShift={(dStr, stId) => handleSelectShift(selectedEmployeeId, dStr, stId)}
                 onBatchSelectShifts={(dStrs, stId) => handleBatchSelectShift(selectedEmployeeId, dStrs, stId)}
@@ -1161,6 +1181,7 @@ export default function App() {
                 daysCount={SYSTEM_CONFIGS[currentSystem].cycleDays}
                 employees={employees}
                 allShiftTypes={shiftTypes}
+                emptyShiftShortcutKey={emptyShiftShortcutKey}
                 nationalHolidays={nationalHolidays}
                 onSelectShift={(empId, dStr, stId) => handleSelectShift(empId, dStr, stId)}
                 onRequestMakeupShift={(cells) => {
@@ -1250,7 +1271,12 @@ export default function App() {
           setShiftTypes((prev) => prev.map((s) => (s.id === updatedSt.id ? updatedSt : s)))
         }
         onDeleteShiftType={(id) => setShiftTypes((prev) => prev.filter((s) => s.id !== id))}
-        onResetShiftTypes={() => setShiftTypes(DEFAULT_SHIFTS)}
+        onResetShiftTypes={() => {
+          setShiftTypes(DEFAULT_SHIFTS);
+          setEmptyShiftShortcutKey(DEFAULT_EMPTY_SHIFT_SHORTCUT_KEY);
+        }}
+        emptyShiftShortcutKey={emptyShiftShortcutKey}
+        onUpdateEmptyShiftShortcut={setEmptyShiftShortcutKey}
         employees={employees}
         onAddEmployee={handleAddEmployee}
         onDeleteEmployee={(id) => setEmployees((prev) => prev.filter((e) => e.id !== id))}
@@ -1348,6 +1374,8 @@ export default function App() {
           setShiftTypes((prev) => prev.map((s) => (s.id === st.id ? st : s)))
         }
         onDeleteShiftType={(id) => setShiftTypes((prev) => prev.filter((s) => s.id !== id))}
+        emptyShiftShortcutKey={emptyShiftShortcutKey}
+        onUpdateEmptyShiftShortcut={setEmptyShiftShortcutKey}
       />
 
       <EmployeeSettingsModal

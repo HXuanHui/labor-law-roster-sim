@@ -7,6 +7,15 @@ import { NationalHoliday, ShiftType } from '../types';
  */
 export const EMPTY_SHIFT_TYPE_ID = 'shift_empty';
 
+/**
+ * 「空」清除鈕的預設快捷鍵（持久化鍵：perpetual_empty_shift_shortcut）。
+ * 僅休／例／國／調／清空預設有捷徑；工作班別由使用者自行設定。
+ */
+export const DEFAULT_EMPTY_SHIFT_SHORTCUT_KEY = '0';
+
+/** LocalStorage 鍵：清空班別快捷鍵。 */
+export const EMPTY_SHIFT_SHORTCUT_STORAGE_KEY = 'perpetual_empty_shift_shortcut';
+
 export const DEFAULT_SHIFTS: ShiftType[] = [
   {
     id: 'shift_morning',
@@ -19,6 +28,7 @@ export const DEFAULT_SHIFTS: ShiftType[] = [
     color: '#5A5A40', // Olive/Dark Sage
     textColor: '#ffffff',
     category: 'work',
+    shortcutKey: '',
   },
   {
     id: 'shift_afternoon',
@@ -31,6 +41,7 @@ export const DEFAULT_SHIFTS: ShiftType[] = [
     color: '#757551', // Medium Olive
     textColor: '#ffffff',
     category: 'work',
+    shortcutKey: '',
   },
   {
     id: 'shift_night',
@@ -43,6 +54,7 @@ export const DEFAULT_SHIFTS: ShiftType[] = [
     color: '#42422F', // Deep Olive
     textColor: '#ffffff',
     category: 'work',
+    shortcutKey: '',
   },
   {
     id: 'shift_long',
@@ -55,6 +67,7 @@ export const DEFAULT_SHIFTS: ShiftType[] = [
     color: '#8A8A70', // Sage Grey
     textColor: '#ffffff',
     category: 'work',
+    shortcutKey: '',
   },
   {
     id: 'shift_rest',
@@ -67,6 +80,7 @@ export const DEFAULT_SHIFTS: ShiftType[] = [
     color: '#94A381', // Muted Leaf Green
     textColor: '#ffffff',
     category: 'rest',
+    shortcutKey: '6',
   },
   {
     id: 'shift_mandatory',
@@ -79,6 +93,7 @@ export const DEFAULT_SHIFTS: ShiftType[] = [
     color: '#D17A60', // Terracotta
     textColor: '#ffffff',
     category: 'mandatory',
+    shortcutKey: '7',
   },
   {
     id: 'shift_national_holiday',
@@ -91,6 +106,7 @@ export const DEFAULT_SHIFTS: ShiftType[] = [
     color: '#B85338', // Deep Terracotta
     textColor: '#ffffff',
     category: 'national_holiday',
+    shortcutKey: '8',
   },
   /**
    * 國定假日補假「調」：整日免出勤。
@@ -107,6 +123,7 @@ export const DEFAULT_SHIFTS: ShiftType[] = [
     color: '#C46B4A', // Mid Terracotta — 與「國」區隔但同系
     textColor: '#ffffff',
     category: 'national_holiday_makeup',
+    shortcutKey: '9',
   },
 ];
 
@@ -120,14 +137,23 @@ export const SYSTEM_PROTECTED_SHIFT_IDS = [
 
 /**
  * 合併使用者已存班別與 DEFAULT_SHIFTS，補上缺失的內建班別（如新增的「調」）。
+ * 亦為尚未寫入 shortcutKey 的舊資料填入內建預設捷徑（僅當欄位為 undefined）。
  * @param stored 自 LocalStorage 還原的班別清單
  * @returns 保證含全部內建班別的清單
  */
 export function ensureDefaultShifts(stored: ShiftType[]): ShiftType[] {
-  const ids = new Set(stored.map((s) => s.id));
+  const defaultById = new Map(DEFAULT_SHIFTS.map((d) => [d.id, d]));
+  // 舊資料無 shortcutKey 時補預設；空字串代表使用者刻意清除，不覆寫
+  const merged = stored.map((s) => {
+    if (s.shortcutKey !== undefined) return s;
+    const def = defaultById.get(s.id);
+    if (!def || def.shortcutKey === undefined) return { ...s, shortcutKey: '' };
+    return { ...s, shortcutKey: def.shortcutKey };
+  });
+  const ids = new Set(merged.map((s) => s.id));
   const missing = DEFAULT_SHIFTS.filter((d) => !ids.has(d.id));
-  if (missing.length === 0) return stored;
-  return [...stored, ...missing];
+  if (missing.length === 0) return merged;
+  return [...merged, ...missing];
 }
 
 /**
