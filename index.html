@@ -3,14 +3,97 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="application-name" content="排班模擬系統" />
+
+    <!-- 基本 SEO：標題避免「勞基法」等易被誤認為官方／法律服務的字樣 -->
+    <title>排班模擬系統｜一般制與 2／4／8 週變形工時檢核</title>
     <meta
       name="description"
-      content="離線排班工具，支援台灣勞基法一般制、2週、4週與8週變形工時檢核。"
+      content="離線可用的排班模擬工具。支援一般工時與 2／4／8 週變形工時參數檢核、班別拖拉與釘選、加班換休與國定假日補假，協助出表前先發現風險。僅供規劃與教育模擬參考，非正式法律意見。"
     />
+    <meta
+      name="keywords"
+      content="排班模擬,變形工時,2週變形,4週變形,8週變形,工時檢核,加班換休,國定假日,班表模擬"
+    />
+    <meta name="author" content="排班模擬系統" />
+    <meta name="application-name" content="排班模擬系統" />
+    <meta name="robots" content="index,follow,max-image-preview:large" />
+    <meta name="theme-color" content="#5A5A40" />
+    <meta name="color-scheme" content="light" />
+
+    <!-- 規範網址：與 Cloudflare Workers 線上示範一致 -->
+    <link rel="canonical" href="https://labor-law-roster-sim.huangxh8531.workers.dev/" />
+
+    <!-- Open Graph：社群／即時通訊預覽 -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="zh_TW" />
+    <meta property="og:site_name" content="排班模擬系統" />
+    <meta
+      property="og:title"
+      content="排班模擬系統｜一般制與 2／4／8 週變形工時檢核"
+    />
+    <meta
+      property="og:description"
+      content="離線可用的排班模擬工具。支援一般工時與 2／4／8 週變形工時參數檢核、班別拖拉、加班換休與國定假日補假。僅供教育模擬參考。"
+    />
+    <meta property="og:url" content="https://labor-law-roster-sim.huangxh8531.workers.dev/" />
+    <meta
+      property="og:image"
+      content="https://labor-law-roster-sim.huangxh8531.workers.dev/guide/04-labor-audit.png"
+    />
+    <meta property="og:image:alt" content="排班模擬系統班表檢核畫面預覽" />
+
+    <!-- Twitter／X Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="排班模擬系統｜一般制與 2／4／8 週變形工時檢核"
+    />
+    <meta
+      name="twitter:description"
+      content="離線可用的排班模擬工具。支援一般工時與 2／4／8 週變形工時參數檢核。僅供教育模擬參考。"
+    />
+    <meta
+      name="twitter:image"
+      content="https://labor-law-roster-sim.huangxh8531.workers.dev/guide/04-labor-audit.png"
+    />
+    <meta name="twitter:image:alt" content="排班模擬系統班表檢核畫面預覽" />
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
-    <title>排班模擬系統</title>
+
+    <!-- GEO／搜尋：軟體應用結構化資料；對外描述同樣避免「官方／法律服務」語氣 -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "排班模擬系統",
+        "alternateName": ["Labor Law Roster Sim", "Roster Sim"],
+        "url": "https://labor-law-roster-sim.huangxh8531.workers.dev/",
+        "description": "離線可用的排班模擬工具。支援一般工時與 2／4／8 週變形工時參數檢核、班別拖拉與釘選、加班換休與國定假日補假。僅供規劃與教育模擬參考，非正式法律意見。",
+        "inLanguage": "zh-Hant",
+        "applicationCategory": "BusinessApplication",
+        "applicationSubCategory": "WorkforceScheduling",
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires JavaScript and localStorage",
+        "isAccessibleForFree": true,
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "TWD"
+        },
+        "featureList": [
+          "一般工時與 2／4／8 週變形工時參數檢核",
+          "連班、例假／休息日、日／週／週期工時與班距檢核",
+          "班別拖拉交換與釘選鎖定",
+          "加班登錄與換休支用",
+          "國定假日與補假（調班）",
+          "月曆與時程／矩陣雙視圖",
+          "本機 localStorage 離線儲存"
+        ],
+        "screenshot": "https://labor-law-roster-sim.huangxh8531.workers.dev/guide/04-labor-audit.png",
+        "image": "https://labor-law-roster-sim.huangxh8531.workers.dev/guide/04-labor-audit.png"
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
