@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Employee, NationalHoliday, ScheduleSystemType, ShiftType, SnapResult } from '../types';
 import { getMonthCalendarGrid } from '../utils/perpetualCalendar';
 import { ShiftBlockTile } from './ShiftBlockTile';
 import { findNearestLegalDate, getEffectiveShift, getCycleInfoForDate, isEmptyShiftTypeId, requiresMandatoryOvertimeCaution } from '../utils/laborLaws';
-import { EMPTY_SHIFT_TYPE_ID, canInitiateShiftChange } from '../constants/shifts';
+import { EMPTY_SHIFT_TYPE_ID, canInitiateShiftChange, isNationalLockedShiftTypeId } from '../constants/shifts';
 import { getContrastingTextColor } from '../utils/colorContrast';
 import {
   getShortcutKeyFromEvent,
@@ -20,6 +21,7 @@ import {
   ChevronDown,
   Settings2,
   Plus,
+  Pin,
 } from 'lucide-react';
 
 /**
@@ -36,6 +38,8 @@ interface CalendarMonthViewProps {
   selectedEmployee: Employee;
   /** 覆寫／目前套用的工時制度。 */
   currentSystem?: ScheduleSystemType;
+  /** 公司級第一週／週期起始日。 */
+  companyCycleStartDate: string;
   /** 全部班別定義。 */
   allShiftTypes: ShiftType[];
   /** 「空」清除排班快捷鍵。 */
@@ -85,6 +89,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
   onChangeYearMonth,
   selectedEmployee,
   currentSystem,
+  companyCycleStartDate,
   allShiftTypes,
   emptyShiftShortcutKey = '',
   nationalHolidays,
@@ -291,6 +296,34 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
     setSelectedDates([]);
   };
 
+  /**
+   * 批次釘選／解釘：選取日中若尚有可釘者則釘上；若皆已釘則解釘。
+   * 國／調略過。
+   */
+  const handleBatchPin = () => {
+    if (!onTogglePin || selectedDates.length === 0) return;
+    const actionable = selectedDates
+      .map((dateStr) => {
+        const effId = getEffectiveShift(
+          selectedEmployee.schedules,
+          dateStr,
+          nationalHolidays
+        ).shiftTypeId;
+        if (isNationalLockedShiftTypeId(effId)) return null;
+        return {
+          dateStr,
+          isPinned: !!selectedEmployee.schedules[dateStr]?.isPinned,
+        };
+      })
+      .filter((x): x is { dateStr: string; isPinned: boolean } => x !== null);
+    if (actionable.length === 0) return;
+    const shouldPin = actionable.some((c) => !c.isPinned);
+    actionable.forEach(({ dateStr, isPinned }) => {
+      if (shouldPin && !isPinned) onTogglePin(dateStr);
+      if (!shouldPin && isPinned) onTogglePin(dateStr);
+    });
+  };
+
   const system = currentSystem || selectedEmployee.scheduleSystem || '2-week';
   const cycleDays =
     system === '2-week' ? 14 : system === '4-week' ? 28 : system === '8-week' ? 56 : 7;
@@ -327,7 +360,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
   >();
 
   daysGrid.forEach((day) => {
-    const info = getCycleInfoForDate(day.dateStr, cycleDays, selectedEmployee.cycleStartDate);
+    const info = getCycleInfoForDate(day.dateStr, cycleDays, companyCycleStartDate);
     if (!cycleMap.has(info.cStartStr)) {
       cycleMap.set(info.cStartStr, {
         cycleNumber: info.cycleNumber,
@@ -646,7 +679,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                           system,
                           allShiftTypes,
                           28,
-                          selectedEmployee.cycleStartDate,
+                          companyCycleStartDate,
                           nationalHolidays
                         );
                         if (!testResult.allowed || testResult.snappedDate !== day.dateStr) {
@@ -779,96 +812,115 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
         })}
       </div>
 
-      {/* 選取後才顯示黑色操作列 */}
-      {selectedDates.length > 0 && (
-        <div className="sticky bottom-4 mx-auto max-w-3xl w-[94%] sm:w-[92%] bg-[#2D2D2D] text-white p-3 rounded-2xl shadow-2xl border border-[#5A5A40] z-50 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in slide-in-from-bottom duration-200">
-          <div className="flex items-center space-x-2 text-left w-full sm:w-auto min-w-0">
-            <span className="bg-[#5A5A40] text-white p-1.5 rounded-xl font-bold flex-shrink-0">
-              <Layers className="w-4 h-4" />
-            </span>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-bold">
-                已選取{' '}
-                <span className="text-yellow-400 font-mono text-sm">{selectedDates.length}</span> 日
+      {/* 選取後黑列：portal 固定於視窗底部，不在卡片內留白拉伸 */}
+      {selectedDates.length > 0 &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] max-w-3xl w-[94%] sm:w-[min(92%,48rem)] bg-[#2D2D2D] text-white p-3 rounded-2xl shadow-2xl border border-[#5A5A40] flex flex-col sm:flex-row items-center justify-between gap-3 animate-in slide-in-from-bottom duration-200"
+            role="toolbar"
+            aria-label="批次套用班別"
+          >
+            <div className="flex items-center space-x-2 text-left w-full sm:w-auto min-w-0">
+              <span className="bg-[#5A5A40] text-white p-1.5 rounded-xl font-bold shrink-0">
+                <Layers className="w-4 h-4" />
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold">
+                  已選取{' '}
+                  <span className="text-yellow-400 font-mono text-sm">{selectedDates.length}</span> 日
+                </div>
+                <p className="text-xs text-gray-300 hidden md:block">
+                  點選班別／釘選或按快捷鍵套用；右側 + 可新增班別
+                </p>
+                <p className="text-xs text-gray-300 block md:hidden">點選班別／釘選或快捷鍵套用</p>
               </div>
-              <p className="text-xs text-gray-300 hidden md:block">
-                點選班別或按快捷鍵套用；右側 + 可新增班別
-              </p>
-              <p className="text-xs text-gray-300 block md:hidden">點選班別或快捷鍵套用</p>
-            </div>
-            <button
-              onClick={() => {
-                setSelectedDates([]);
-                setLastClickedDate(null);
-              }}
-              className="sm:hidden text-sm bg-red-500/20 text-red-300 hover:bg-red-500/40 px-2 py-1 rounded-lg border border-red-500/30 flex-shrink-0 font-bold"
-            >
-              取消
-            </button>
-          </div>
-
-          <div className="flex items-center gap-1.5 flex-wrap justify-center sm:justify-end w-full sm:w-auto">
-            {allShiftTypes.map((st) => (
               <button
-                key={st.id}
-                onClick={() => handleApplyBatchShift(st.id)}
-                className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold transition-transform hover:scale-105 active:scale-95 shadow cursor-pointer border border-white/20 flex items-center justify-center gap-1"
-                style={{ backgroundColor: st.color, color: getContrastingTextColor(st.color) }}
+                onClick={() => {
+                  setSelectedDates([]);
+                  setLastClickedDate(null);
+                }}
+                className="sm:hidden text-sm bg-red-500/20 text-red-300 hover:bg-red-500/40 px-2 py-1 rounded-lg border border-red-500/30 shrink-0 font-bold"
+              >
+                取消
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap justify-center sm:justify-end w-full sm:w-auto">
+              {allShiftTypes.map((st) => (
+                <button
+                  key={st.id}
+                  onClick={() => handleApplyBatchShift(st.id)}
+                  className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold transition-transform hover:scale-105 active:scale-95 shadow cursor-pointer border border-white/20 flex items-center justify-center gap-1"
+                  style={{ backgroundColor: st.color, color: getContrastingTextColor(st.color) }}
+                  title={
+                    st.shortcutKey
+                      ? `批次設置為：${st.name}（快捷鍵 ${st.shortcutKey}）`
+                      : `批次設置為：${st.name}`
+                  }
+                >
+                  <span>{st.code}</span>
+                  {st.shortcutKey ? (
+                    <span className="hidden sm:inline opacity-70 font-mono text-[10px] leading-none">
+                      {st.shortcutKey}
+                    </span>
+                  ) : null}
+                </button>
+              ))}
+              <button
+                onClick={() => handleApplyBatchShift(EMPTY_SHIFT_TYPE_ID)}
+                className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors cursor-pointer border border-slate-500 flex items-center gap-1"
                 title={
-                  st.shortcutKey
-                    ? `批次設置為：${st.name}（快捷鍵 ${st.shortcutKey}）`
-                    : `批次設置為：${st.name}`
+                  emptyShiftShortcutKey
+                    ? `清除當天排班（快捷鍵 ${emptyShiftShortcutKey}）`
+                    : '清除當天排班（非休息日／例假／國定假日）'
                 }
               >
-                <span>{st.code}</span>
-                {st.shortcutKey ? (
+                <span>空</span>
+                {emptyShiftShortcutKey ? (
                   <span className="hidden sm:inline opacity-70 font-mono text-[10px] leading-none">
-                    {st.shortcutKey}
+                    {emptyShiftShortcutKey}
                   </span>
                 ) : null}
               </button>
-            ))}
-            <button
-              onClick={() => handleApplyBatchShift(EMPTY_SHIFT_TYPE_ID)}
-              className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors cursor-pointer border border-slate-500 flex items-center gap-1"
-              title={
-                emptyShiftShortcutKey
-                  ? `清除當天排班（快捷鍵 ${emptyShiftShortcutKey}）`
-                  : '清除當天排班（非休息日／例假／國定假日）'
-              }
-            >
-              <span>空</span>
-              {emptyShiftShortcutKey ? (
-                <span className="hidden sm:inline opacity-70 font-mono text-[10px] leading-none">
-                  {emptyShiftShortcutKey}
-                </span>
-              ) : null}
-            </button>
-            {onOpenShiftModal && (
+              {onTogglePin && (
+                <button
+                  type="button"
+                  onClick={handleBatchPin}
+                  className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold bg-amber-500/90 hover:bg-amber-500 text-white transition-colors cursor-pointer border border-amber-300/40 flex items-center justify-center gap-1"
+                  title="批次釘選／解釘選取日（國／調略過）"
+                  aria-label="批次釘選"
+                >
+                  <Pin className="w-3.5 h-3.5 fill-white" />
+                  <span className="hidden sm:inline">釘選</span>
+                </button>
+              )}
+              {onOpenShiftModal && (
+                <button
+                  type="button"
+                  onClick={onOpenShiftModal}
+                  className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold bg-[#5A5A40] hover:bg-[#484833] text-white transition-colors cursor-pointer border border-white/20 flex items-center justify-center gap-0.5"
+                  title="新增／編輯班別"
+                  aria-label="新增班別"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              )}
               <button
-                type="button"
-                onClick={onOpenShiftModal}
-                className="min-w-8 h-8 sm:h-auto sm:px-2.5 sm:py-1 px-1.5 rounded-lg text-xs sm:text-sm font-bold bg-[#5A5A40] hover:bg-[#484833] text-white transition-colors cursor-pointer border border-white/20 flex items-center justify-center gap-0.5"
-                title="新增／編輯班別"
-                aria-label="新增班別"
+                onClick={() => {
+                  setSelectedDates([]);
+                  setLastClickedDate(null);
+                }}
+                className="hidden sm:flex items-center gap-1 px-2.5 py-1 bg-red-500/80 hover:bg-red-500 text-white rounded-lg text-sm font-bold transition-colors cursor-pointer"
+                title="取消框選"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <XCircle className="w-3.5 h-3.5" />
+                <span>取消</span>
               </button>
-            )}
-            <button
-              onClick={() => {
-                setSelectedDates([]);
-                setLastClickedDate(null);
-              }}
-              className="hidden sm:flex items-center gap-1 px-2.5 py-1 bg-red-500/80 hover:bg-red-500 text-white rounded-lg text-sm font-bold transition-colors cursor-pointer"
-              title="取消框選"
-            >
-              <XCircle className="w-3.5 h-3.5" />
-              <span>取消</span>
-            </button>
-          </div>
-        </div>
-      )}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

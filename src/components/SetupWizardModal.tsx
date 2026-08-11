@@ -48,7 +48,7 @@ interface SetupWizardModalProps {
    */
   onUpdateEmptyShiftShortcut: (key: string) => void;
   employees: Employee[];
-  onAddEmployee: (name: string, role: string, system: ScheduleSystemType, cycleStartDate: string) => void;
+  onAddEmployee: (name: string, role: string, system: ScheduleSystemType) => void;
   onDeleteEmployee: (id: string) => void;
   onCompleteSetup: () => void;
 }
@@ -191,11 +191,9 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
   };
 
   // Form states for Step 3: Employee
-  const defaultDate = format(new Date(), 'yyyy-MM-01');
   const [empName, setEmpName] = useState('');
   const [empRole, setEmpRole] = useState('專任人員');
   const [empSystem, setEmpSystem] = useState<ScheduleSystemType>('2-week');
-  const [empCycleStart, setEmpCycleStart] = useState(defaultDate);
 
   if (!isOpen) return null;
 
@@ -390,7 +388,7 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
   const handleAddEmployeeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!empName.trim()) return;
-    onAddEmployee(empName.trim(), empRole, empSystem, empCycleStart || defaultDate);
+    onAddEmployee(empName.trim(), empRole, empSystem);
     setEmpName('');
   };
 
@@ -1009,7 +1007,7 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   <div>
                     <label className="block text-sm text-[#8A8A70] mb-1">適用勞基法變形工時制度</label>
                     <select
@@ -1023,15 +1021,9 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
                         </option>
                       ))}
                     </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-[#8A8A70] mb-1">第一週週期起始日</label>
-                    <input
-                      type="date"
-                      value={empCycleStart}
-                      onChange={(e) => setEmpCycleStart(e.target.value)}
-                      className="w-full bg-white border border-[#D9D7C2] rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#5A5A40]"
-                    />
+                    <p className="text-xs text-[#8A8A70] mt-1">
+                      第一週／週期起始日改於主畫面制度列統一設定（公司級）。
+                    </p>
                   </div>
                 </div>
 

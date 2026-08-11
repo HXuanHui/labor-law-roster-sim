@@ -44,6 +44,9 @@ import { DisclaimerModal } from './components/DisclaimerModal';
 import { LegalInfoModal } from './components/LegalInfoModal';
 import { ExportCalendarModal } from './components/ExportCalendarModal';
 import { AboutModal, type AboutTabId } from './components/AboutModal';
+import { AutoScheduleWizardModal } from './components/AutoScheduleWizardModal';
+import { AUTO_SCHEDULE_TIP_DISMISS_KEY, type AutoScheduleResult, type AutoScheduleSavedParams } from './types/autoSchedule';
+import { prepareAutoScheduleBlankDraft } from './utils/autoSchedule';
 import {
   collectNationalShiftCandidates,
   MakeupSourcePickerModal,
@@ -53,7 +56,7 @@ import {
   type HolidayDeleteConfirmDetails,
 } from './components/DeleteNationalHolidayConfirmModal';
 import { buildMakeupHolidayName, findMakeupHolidaysForSource } from './utils/holidayMakeup';
-import { Calendar, LayoutGrid, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { addDays, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
 
 export default function App() {
@@ -62,10 +65,48 @@ export default function App() {
   const [currentMonth, setCurrentMonth] = useState(today.getMonth() + 1);
   const [currentSystem, setCurrentSystem] = useState<ScheduleSystemType>('2-week');
   const [viewMode, setViewMode] = useState<'month' | 'timeline'>('month');
-  /** 矩陣檢視捲動起始日（可與月曆當月 1 日不同，支援前／後 N 天） */
+  /** 矩陣檢視月份起始日（該月 1 日；與月曆當月同步） */
   const [timelineStartDateStr, setTimelineStartDateStr] = useState(() =>
     format(new Date(today.getFullYear(), today.getMonth(), 1), 'yyyy-MM-dd')
   );
+  /** 矩陣方格縮放階（提升至 App，切換月曆／矩陣後可記憶） */
+  const [timelineZoomLevel, setTimelineZoomLevel] = useState(0);
+  /**
+   * 公司級第一週／週期起始日（全員共用）。
+   * 若尚未儲存，嘗試自第一位同仁遷移，否則用本月 1 日。
+   */
+  const [companyCycleStartDate, setCompanyCycleStartDate] = useState(() => {
+    const saved = localStorage.getItem('perpetual_cycle_start');
+    if (saved) return saved;
+    try {
+      const raw = localStorage.getItem('perpetual_employees');
+      if (raw) {
+        const list = JSON.parse(raw) as Employee[];
+        const fromEmp = list.find((e) => e.cycleStartDate)?.cycleStartDate;
+        if (fromEmp) return fromEmp;
+      }
+    } catch {
+      /* ignore */
+    }
+    return format(new Date(today.getFullYear(), today.getMonth(), 1), 'yyyy-MM-dd');
+  });
+  /** 一鍵排班：精靈 Modal（tip／config）。 */
+  const [autoWizardOpen, setAutoWizardOpen] = useState(false);
+  /** tip 或 config。 */
+  const [autoWizardStep, setAutoWizardStep] = useState<'tip' | 'config'>('tip');
+  /** 預排草稿覆蓋矩陣（null＝正式班表）。 */
+  const [autoDraftEmployees, setAutoDraftEmployees] = useState<Employee[] | null>(null);
+  /** blank＝虛擬空白；preview＝演算預覽。 */
+  const [autoDraftPhase, setAutoDraftPhase] = useState<'blank' | 'preview' | null>(null);
+  /**
+   * 進入參數／演算前的空白預排快照（含手動預排），供預覽「回上一步」還原。
+   */
+  const [autoBlankSnapshot, setAutoBlankSnapshot] = useState<Employee[] | null>(null);
+  /**
+   * 上次確認演算的參數快照（「調整參數」還原用）。
+   */
+  const [autoScheduleSavedParams, setAutoScheduleSavedParams] =
+    useState<AutoScheduleSavedParams | null>(null);
 
   // Modals state
   const [isHolidaysModalOpen, setIsHolidaysModalOpen] = useState(false);
@@ -184,6 +225,7 @@ export default function App() {
       localStorage.removeItem('perpetual_national_holidays');
       localStorage.removeItem('perpetual_employees');
       localStorage.removeItem('perpetual_setup_completed');
+      localStorage.removeItem('perpetual_cycle_start');
       localStorage.removeItem(EMPTY_SHIFT_SHORTCUT_STORAGE_KEY);
 
       setShiftTypes(DEFAULT_SHIFTS);
@@ -222,6 +264,25 @@ export default function App() {
     localStorage.setItem('perpetual_employees', JSON.stringify(employees));
   }, [employees]);
 
+  // 公司級週期起日持久化，並同步回寫每位同仁（相容舊欄位／檢核路徑）
+  useEffect(() => {
+    localStorage.setItem('perpetual_cycle_start', companyCycleStartDate);
+    setEmployees((prev) => {
+      if (prev.length === 0) return prev;
+      if (prev.every((e) => e.cycleStartDate === companyCycleStartDate)) return prev;
+      return prev.map((e) => ({ ...e, cycleStartDate: companyCycleStartDate }));
+    });
+  }, [companyCycleStartDate]);
+
+  /**
+   * 更新公司級第一週起始日。
+   * @param dateStr 新日期
+   */
+  const handleChangeCompanyCycleStartDate = (dateStr: string) => {
+    if (!dateStr) return;
+    setCompanyCycleStartDate(dateStr);
+  };
+
   // Active employee object
   const selectedEmployee = useMemo(() => {
     return employees.find((e) => e.id === selectedEmployeeId) || employees[0];
@@ -230,6 +291,141 @@ export default function App() {
   // Window date range for current view evaluation
   const monthStartDateStr = format(new Date(currentYear, currentMonth - 1, 1), 'yyyy-MM-dd');
   const monthEndDateStr = format(endOfMonth(new Date(currentYear, currentMonth - 1, 1)), 'yyyy-MM-dd');
+
+  /** 是否處於一鍵排班未儲存草稿。 */
+  const isAutoDraftActive = autoDraftEmployees !== null;
+
+  /** 矩陣顯示用：草稿優先。 */
+  const rosterEmployees = autoDraftEmployees ?? employees;
+
+  /**
+   * 寫入班表變更：空白預排寫草稿；預覽鎖定；其餘寫正式資料。
+   * @param updater 更新函式
+   */
+  const commitRosterEmployees = (updater: (prev: Employee[]) => Employee[]) => {
+    if (autoDraftPhase === 'preview') return;
+    if (autoDraftPhase === 'blank') {
+      setAutoDraftEmployees((prev) => (prev ? updater(prev) : prev));
+      return;
+    }
+    setEmployees(updater);
+  };
+
+  /** 取消一鍵預排，還原正式班表顯示。 */
+  const handleCancelAutoDraft = () => {
+    setAutoDraftEmployees(null);
+    setAutoDraftPhase(null);
+    setAutoBlankSnapshot(null);
+    setAutoWizardOpen(false);
+  };
+
+  /**
+   * 開啟一鍵排班：強制矩陣模式，必要時先顯示流程提示。
+   */
+  const handleOpenAutoSchedule = () => {
+    setViewMode('timeline');
+    const tipDismissed = localStorage.getItem(AUTO_SCHEDULE_TIP_DISMISS_KEY) === '1';
+    if (tipDismissed) {
+      const included = new Set(employees.map((e) => e.id));
+      const blank = prepareAutoScheduleBlankDraft(
+        employees,
+        included,
+        monthStartDateStr,
+        monthEndDateStr,
+        companyCycleStartDate
+      );
+      setAutoDraftEmployees(blank);
+      setAutoBlankSnapshot(blank);
+      setAutoDraftPhase('blank');
+      setAutoWizardOpen(false);
+    } else {
+      setAutoWizardStep('tip');
+      setAutoWizardOpen(true);
+    }
+  };
+
+  /**
+   * 流程說明結束 → 關閉 Modal、覆蓋虛擬空白草稿。
+   * @param dontShowAgain 是否記住不再提示
+   */
+  const handleAutoTipFinished = (dontShowAgain: boolean) => {
+    if (dontShowAgain) {
+      localStorage.setItem(AUTO_SCHEDULE_TIP_DISMISS_KEY, '1');
+    }
+    const included = new Set(employees.map((e) => e.id));
+    const blank = prepareAutoScheduleBlankDraft(
+      employees,
+      included,
+      monthStartDateStr,
+      monthEndDateStr,
+      companyCycleStartDate
+    );
+    setAutoDraftEmployees(blank);
+    setAutoBlankSnapshot(blank);
+    setAutoDraftPhase('blank');
+    setAutoWizardOpen(false);
+  };
+
+  /** 草稿矩陣按「下一步」→ 先快照空白預排，再開參數 Modal。 */
+  const handleAutoDraftNext = () => {
+    if (autoDraftEmployees) {
+      setAutoBlankSnapshot(autoDraftEmployees.map((e) => ({
+        ...e,
+        schedules: { ...e.schedules },
+      })));
+    }
+    setAutoWizardStep('config');
+    setAutoWizardOpen(true);
+  };
+
+  /**
+   * 演算完成並到矩陣預覽。
+   * @param result 結果
+   */
+  const handleAutoPreviewResult = (result: AutoScheduleResult) => {
+    setAutoDraftEmployees(result.employees);
+    setAutoDraftPhase('preview');
+    setAutoWizardOpen(false);
+  };
+
+  /**
+   * 預覽回上一步：還原空白預排快照，可重新手動預排再排。
+   */
+  const handleAutoBackToBlank = () => {
+    if (!autoBlankSnapshot) return;
+    setAutoDraftEmployees(
+      autoBlankSnapshot.map((e) => ({
+        ...e,
+        schedules: { ...e.schedules },
+      }))
+    );
+    setAutoDraftPhase('blank');
+    setAutoWizardOpen(false);
+  };
+
+  /** 儲存預排草稿為正式班表。 */
+  const handleSaveAutoDraft = () => {
+    if (!autoDraftEmployees) return;
+    setEmployees(autoDraftEmployees);
+    setAutoDraftEmployees(null);
+    setAutoDraftPhase(null);
+    setAutoBlankSnapshot(null);
+  };
+
+  /**
+   * 切換檢視模式；若有未儲存預排則先確認。
+   * @param mode 目標模式
+   */
+  const handleChangeViewMode = (mode: 'month' | 'timeline') => {
+    if (isAutoDraftActive && mode !== 'timeline') {
+      const ok = window.confirm(
+        '目前有未儲存的一鍵預排。切換月曆模式會丟失預排結果，確定要離開嗎？'
+      );
+      if (!ok) return;
+      handleCancelAutoDraft();
+    }
+    setViewMode(mode);
+  };
 
   // Evaluate Compliance for active employee
   const violations: LaborRuleViolation[] = useMemo(() => {
@@ -241,9 +437,9 @@ export default function App() {
       currentSystem,
       shiftTypes,
       nationalHolidays,
-      selectedEmployee.cycleStartDate
+      companyCycleStartDate
     );
-  }, [selectedEmployee, monthStartDateStr, monthEndDateStr, currentSystem, shiftTypes, nationalHolidays]);
+  }, [selectedEmployee, monthStartDateStr, monthEndDateStr, currentSystem, shiftTypes, nationalHolidays, companyCycleStartDate]);
 
   // Auto-clear highlightDates when violations are resolved
   useEffect(() => {
@@ -287,7 +483,7 @@ export default function App() {
         ? todayStr
         : monthStartDateStr;
 
-    const refCycle = getCycleInfoForDate(refDateStr, cycleDays, selectedEmployee.cycleStartDate);
+    const refCycle = getCycleInfoForDate(refDateStr, cycleDays, companyCycleStartDate);
 
     let hours = 0;
     let mandatory = 0;
@@ -444,7 +640,7 @@ export default function App() {
     );
 
     // --- 班表：關聯補假／其他同仁回預設；發起同仁寫入目標班 ---
-    setEmployees((prev) =>
+    commitRosterEmployees((prev) =>
       prev.map((e) => {
         const newSched = { ...e.schedules };
 
@@ -554,7 +750,7 @@ export default function App() {
         return next;
       });
 
-      setEmployees((prev) =>
+      commitRosterEmployees((prev) =>
         prev.map((e) => {
           if (e.id !== empId) return e;
           return {
@@ -596,7 +792,7 @@ export default function App() {
       return;
     }
 
-    const emp = employees.find((e) => e.id === empId);
+    const emp = rosterEmployees.find((e) => e.id === empId);
     if (!emp) return;
 
     const prevEff = getEffectiveShift(emp.schedules, dateStr, nationalHolidays);
@@ -625,7 +821,7 @@ export default function App() {
 
     const pinNational = isNationalLockedShiftTypeId(shiftTypeId);
 
-    setEmployees((prev) =>
+    commitRosterEmployees((prev) =>
       prev.map((e) => {
         if (e.id !== empId) return e;
         if (e.schedules[dateStr]?.isPinned && !pinNational) return e;
@@ -742,7 +938,7 @@ export default function App() {
     });
 
     // 班表寫入「調」＋替補標記＋強制釘選
-    setEmployees((prev) =>
+    commitRosterEmployees((prev) =>
       prev.map((e) => {
         if (e.id !== empId) return e;
         return {
@@ -1020,13 +1216,13 @@ export default function App() {
    * @param dateStr 日期
    */
   const handleTogglePin = (empId: string, dateStr: string) => {
-    const emp = employees.find((e) => e.id === empId);
+    const emp = rosterEmployees.find((e) => e.id === empId);
     if (!emp) return;
     const effId = getEffectiveShift(emp.schedules, dateStr, nationalHolidays).shiftTypeId;
     // 國／調不可解釘
     if (isNationalLockedShiftTypeId(effId)) return;
 
-    setEmployees((prev) =>
+    commitRosterEmployees((prev) =>
       prev.map((e) => {
         if (e.id !== empId) return e;
         const newSched = { ...e.schedules };
@@ -1060,7 +1256,7 @@ export default function App() {
       return;
     }
 
-    const emp = employees.find((e) => e.id === empId);
+    const emp = rosterEmployees.find((e) => e.id === empId);
     if (!emp) return;
 
     // 篩出會改掉國／調的日期；有則先開 Modal，確認後才整批套用
@@ -1082,7 +1278,7 @@ export default function App() {
 
     const pinNational = isNationalLockedShiftTypeId(shiftTypeId);
 
-    setEmployees((prev) =>
+    commitRosterEmployees((prev) =>
       prev.map((e) => {
         if (e.id !== empId) return e;
         const newSched = { ...e.schedules };
@@ -1177,7 +1373,7 @@ export default function App() {
 
   // Requirement #5：方塊平移班別，非法位置卡在最近合法日（兩班對調）
   const handleSlideShift = (empId: string, dateStr: string, direction: 'left' | 'right') => {
-    const emp = employees.find((e) => e.id === empId);
+    const emp = rosterEmployees.find((e) => e.id === empId);
     if (!emp) return;
     if (emp.schedules[dateStr]?.isPinned) return;
 
@@ -1198,7 +1394,7 @@ export default function App() {
       currentSystem,
       shiftTypes,
       28,
-      emp.cycleStartDate,
+      companyCycleStartDate,
       nationalHolidays
     );
 
@@ -1206,7 +1402,7 @@ export default function App() {
 
     if (snapResult.allowed) {
       const finalTargetDate = snapResult.snappedDate;
-      setEmployees((prev) =>
+      commitRosterEmployees((prev) =>
         prev.map((e) => {
           if (e.id !== empId) return e;
           return {
@@ -1221,7 +1417,7 @@ export default function App() {
   // Drag and Drop with Swap & Snap Legal Boundary
   const handleDragDropShift = (empId: string, fromDateStr: string, targetDateStr: string) => {
     if (fromDateStr === targetDateStr) return;
-    const emp = employees.find((e) => e.id === empId);
+    const emp = rosterEmployees.find((e) => e.id === empId);
     if (!emp) return;
     if (emp.schedules[fromDateStr]?.isPinned || emp.schedules[targetDateStr]?.isPinned) return;
 
@@ -1237,7 +1433,7 @@ export default function App() {
       currentSystem,
       shiftTypes,
       28,
-      emp.cycleStartDate,
+      companyCycleStartDate,
       nationalHolidays
     );
 
@@ -1245,7 +1441,7 @@ export default function App() {
 
     if (snapResult.allowed) {
       const finalTargetDate = snapResult.snappedDate;
-      setEmployees((prev) =>
+      commitRosterEmployees((prev) =>
         prev.map((e) => {
           if (e.id !== empId) return e;
           return {
@@ -1285,7 +1481,7 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
-  const handleAddEmployee = (name: string, role: string, system: ScheduleSystemType, cycleStartDate: string) => {
+  const handleAddEmployee = (name: string, role: string, system: ScheduleSystemType) => {
     const newEmpId = `emp_${Date.now()}`;
     const newEmp: Employee = {
       id: newEmpId,
@@ -1293,7 +1489,7 @@ export default function App() {
       role,
       department: '營運部',
       scheduleSystem: system,
-      cycleStartDate,
+      cycleStartDate: companyCycleStartDate,
       schedules: {},
     };
 
@@ -1415,53 +1611,13 @@ export default function App() {
           employees={employees}
           selectedEmployeeId={selectedEmployeeId}
           onSelectEmployee={setSelectedEmployeeId}
+          viewMode={viewMode}
+          onChangeViewMode={handleChangeViewMode}
         />
       </div>
 
       {/* Main Content Area */}
       <main className="no-print flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* View Mode Toggle Bar */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-[#E9E7D4] pb-4">
-          <div className="flex items-center space-x-2">
-            {viewMode === 'timeline' && (
-              <h2 className="text-xl font-bold font-serif text-[#2D2D2D]">
-                全體同仁矩陣排班總覽
-              </h2>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-            <div className="flex bg-[#F8F7EB] p-1 rounded-xl border border-[#E9E7D4]">
-              <button
-                onClick={() => setViewMode('month')}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                  viewMode === 'month'
-                    ? 'bg-[#5A5A40] text-white shadow-sm'
-                    : 'text-[#8A8A70] hover:text-[#2D2D2D]'
-                }`}
-                title="月曆模式"
-              >
-                <Calendar className="w-4 h-4 flex-shrink-0" />
-                <span className="hidden sm:inline">月曆模式</span>
-                <span className="sm:hidden">月曆</span>
-              </button>
-              <button
-                onClick={() => setViewMode('timeline')}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                  viewMode === 'timeline'
-                    ? 'bg-[#5A5A40] text-white shadow-sm'
-                    : 'text-[#8A8A70] hover:text-[#2D2D2D]'
-                }`}
-                title="全人員矩陣模式"
-              >
-                <LayoutGrid className="w-4 h-4 flex-shrink-0" />
-                <span className="hidden sm:inline">全人員矩陣模式</span>
-                <span className="sm:hidden">矩陣</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* Empty State Card if no employees */}
         {employees.length === 0 ? (
           <div className="bg-white border-2 border-dashed border-[#D9D7C2] rounded-2xl p-10 text-center space-y-4 max-w-xl mx-auto my-12 shadow-sm">
@@ -1508,6 +1664,7 @@ export default function App() {
                 }}
                 selectedEmployee={selectedEmployee}
                 currentSystem={currentSystem}
+                companyCycleStartDate={companyCycleStartDate}
                 allShiftTypes={shiftTypes}
                 emptyShiftShortcutKey={emptyShiftShortcutKey}
                 nationalHolidays={nationalHolidays}
@@ -1537,39 +1694,72 @@ export default function App() {
             ) : (
               <RosterTimelineView
                 startDateStr={timelineStartDateStr}
-                daysCount={SYSTEM_CONFIGS[currentSystem].cycleDays}
-                employees={employees}
+                currentSystem={currentSystem}
+                companyCycleStartDate={companyCycleStartDate}
+                employees={rosterEmployees}
                 allShiftTypes={shiftTypes}
                 emptyShiftShortcutKey={emptyShiftShortcutKey}
                 nationalHolidays={nationalHolidays}
-                onSelectShift={(empId, dStr, stId) => handleSelectShift(empId, dStr, stId)}
-                onBatchSelectShifts={(empId, dStrs, stId) =>
-                  handleBatchSelectShift(empId, dStrs, stId)
-                }
+                onSelectShift={(empId, dStr, stId) => {
+                  if (autoDraftPhase === 'preview') return;
+                  handleSelectShift(empId, dStr, stId);
+                }}
+                onBatchSelectShifts={(empId, dStrs, stId) => {
+                  if (autoDraftPhase === 'preview') return;
+                  handleBatchSelectShift(empId, dStrs, stId);
+                }}
                 onRequestMakeupShift={(cells) => {
+                  if (autoDraftPhase === 'preview') return;
                   if (cells.length === 0) return;
-                  // 矩陣多格時以第一格同仁為準（同批通常同仁）
                   setMakeupPick({
                     empId: cells[0].empId,
                     targetDates: cells.map((c) => c.dateStr),
                   });
                 }}
-                onSlideShift={(empId, dStr, dir) => handleSlideShift(empId, dStr, dir)}
-                onDragDropShift={(empId, fDate, tDate) => handleDragDropShift(empId, fDate, tDate)}
-                onTogglePin={(empId, dStr) => handleTogglePin(empId, dStr)}
+                onSlideShift={(empId, dStr, dir) => {
+                  if (autoDraftPhase === 'preview') return;
+                  handleSlideShift(empId, dStr, dir);
+                }}
+                onDragDropShift={(empId, fDate, tDate) => {
+                  if (autoDraftPhase === 'preview') return;
+                  handleDragDropShift(empId, fDate, tDate);
+                }}
+                onTogglePin={(empId, dStr) => {
+                  if (autoDraftPhase === 'preview') return;
+                  handleTogglePin(empId, dStr);
+                }}
                 onChangeStartDate={(newStart) => {
-                  setTimelineStartDateStr(newStart);
-                  // 同步年月供檢核面板／月曆對齊，但不強制回到 1 日
-                  const d = parseISO(newStart);
+                  if (isAutoDraftActive) return;
+                  const monthFirst = format(startOfMonth(parseISO(newStart)), 'yyyy-MM-dd');
+                  setTimelineStartDateStr(monthFirst);
+                  const d = parseISO(monthFirst);
                   setCurrentYear(d.getFullYear());
                   setCurrentMonth(d.getMonth() + 1);
                 }}
                 selectedEmployeeId={selectedEmployeeId}
                 onSelectEmployee={setSelectedEmployeeId}
                 onOpenShiftModal={() => setIsShiftModalOpen(true)}
-                onAdjustOvertime={handleAdjustOvertime}
-                onTakeCompLeave={handleTakeCompLeave}
-                onSetDayHours={handleSetDayDisplayHours}
+                onOpenEmployeeModal={() => setIsEmployeeModalOpen(true)}
+                onOpenAutoSchedule={handleOpenAutoSchedule}
+                autoScheduleChrome={
+                  autoDraftPhase
+                    ? {
+                        phase: autoDraftPhase,
+                        onCancel: handleCancelAutoDraft,
+                        onNext: handleAutoDraftNext,
+                        onSave:
+                          autoDraftPhase === 'preview'
+                            ? handleSaveAutoDraft
+                            : undefined,
+                        onBackToBlank:
+                          autoDraftPhase === 'preview'
+                            ? handleAutoBackToBlank
+                            : undefined,
+                      }
+                    : undefined
+                }
+                zoomLevel={timelineZoomLevel}
+                onChangeZoomLevel={setTimelineZoomLevel}
               />
             )}
           </>
@@ -1746,15 +1936,24 @@ export default function App() {
         onDeleteShiftType={(id) => setShiftTypes((prev) => prev.filter((s) => s.id !== id))}
         emptyShiftShortcutKey={emptyShiftShortcutKey}
         onUpdateEmptyShiftShortcut={setEmptyShiftShortcutKey}
+        companyCycleStartDate={companyCycleStartDate}
+        onChangeCompanyCycleStartDate={handleChangeCompanyCycleStartDate}
       />
 
       <EmployeeSettingsModal
         isOpen={isEmployeeModalOpen}
         onClose={() => setIsEmployeeModalOpen(false)}
         employees={employees}
+        companyCycleStartDate={companyCycleStartDate}
         onAddEmployee={handleAddEmployee}
         onUpdateEmployee={(updatedEmp) => {
-          setEmployees((prev) => prev.map((e) => (e.id === updatedEmp.id ? updatedEmp : e)));
+          setEmployees((prev) =>
+            prev.map((e) =>
+              e.id === updatedEmp.id
+                ? { ...updatedEmp, cycleStartDate: companyCycleStartDate }
+                : e
+            )
+          );
         }}
         onDeleteEmployee={(id) => {
           setEmployees((prev) => prev.filter((e) => e.id !== id));
@@ -1764,6 +1963,24 @@ export default function App() {
         }}
         onSelectEmployee={setSelectedEmployeeId}
         selectedEmployeeId={selectedEmployeeId}
+      />
+
+      <AutoScheduleWizardModal
+        isOpen={autoWizardOpen}
+        onClose={() => setAutoWizardOpen(false)}
+        initialStep={autoWizardStep}
+        startDate={monthStartDateStr}
+        endDate={monthEndDateStr}
+        currentSystem={currentSystem}
+        companyCycleStartDate={companyCycleStartDate}
+        shiftTypes={shiftTypes}
+        nationalHolidays={nationalHolidays}
+        baselineEmployees={employees}
+        draftEmployees={autoDraftEmployees}
+        onTipFinished={handleAutoTipFinished}
+        onPreviewResult={handleAutoPreviewResult}
+        savedParams={autoScheduleSavedParams}
+        onParamsCommitted={setAutoScheduleSavedParams}
       />
 
       <ExportCalendarModal

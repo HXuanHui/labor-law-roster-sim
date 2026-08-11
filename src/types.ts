@@ -66,6 +66,9 @@ export interface Employee {
   role: string;
   department: string;
   scheduleSystem: ScheduleSystemType;
+  /**
+   * @deprecated 請使用公司級 companyCycleStartDate；寫入時會同步為此值以相容舊邏輯。
+   */
   cycleStartDate?: string; // YYYY-MM-DD (e.g. 第一週/週期起始日)
   schedules: Record<string, DayShift>; // key: YYYY-MM-DD
 }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ShiftType } from '../types';
-import { Layers, Plus, Trash2, X, Edit2, Check, Clock, Keyboard } from 'lucide-react';
+import { Layers, Plus, Trash2, X, Edit2, Check, Clock, Keyboard, Calendar } from 'lucide-react';
 import { getContrastingTextColor } from '../utils/colorContrast';
 import { SYSTEM_PROTECTED_SHIFT_IDS } from '../constants/shifts';
 import { findShortcutConflict } from '../utils/shiftShortcuts';
@@ -20,6 +20,13 @@ interface ShiftSettingsModalProps {
    * @param key 新快捷鍵（空字串＝取消）
    */
   onUpdateEmptyShiftShortcut: (key: string) => void;
+  /** 公司級第一週／週期起始日。 */
+  companyCycleStartDate: string;
+  /**
+   * 變更公司級第一週起始日。
+   * @param dateStr 新起始日
+   */
+  onChangeCompanyCycleStartDate: (dateStr: string) => void;
 }
 
 /**
@@ -34,6 +41,8 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
   onDeleteShiftType,
   emptyShiftShortcutKey,
   onUpdateEmptyShiftShortcut,
+  companyCycleStartDate,
+  onChangeCompanyCycleStartDate,
 }) => {
   // New shift form state
   const [code, setCode] = useState('');
@@ -189,6 +198,20 @@ export const ShiftSettingsModal: React.FC<ShiftSettingsModalProps> = ({
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* 公司級第一週／週期起始日（全體同仁共用） */}
+        <div className="bg-[#F8F7EB] border border-[#E9E7D4] rounded-xl p-4 space-y-2">
+          <div className="text-sm font-bold text-[#5A5A40] flex items-center gap-1.5">
+            <Calendar className="w-4 h-4" />
+            公司第一週／週期起始日
+          </div>
+          <input
+            type="date"
+            value={companyCycleStartDate}
+            onChange={(e) => onChangeCompanyCycleStartDate(e.target.value)}
+            className="w-full sm:w-auto bg-white border border-[#D9D7C2] rounded-xl px-3 py-2 text-sm text-[#2D2D2D] outline-none focus:ring-2 focus:ring-[#5A5A40] font-mono"
+          />
         </div>
 
         {/* Form to add custom shift */}

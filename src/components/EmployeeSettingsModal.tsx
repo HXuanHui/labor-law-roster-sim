@@ -1,59 +1,82 @@
 import React, { useState } from 'react';
 import { Employee, ScheduleSystemType } from '../types';
-import { Users, Plus, Trash2, X, UserPlus, Check, Calendar, Edit2 } from 'lucide-react';
+import { Users, Plus, Trash2, X, UserPlus, Check, Edit2 } from 'lucide-react';
 import { SYSTEM_CONFIGS } from '../constants/systems';
-import { format } from 'date-fns';
 
+/**
+ * 同仁設定 Modal 屬性。
+ * 第一週／週期起始日改由公司級設定，不在個別同仁表單調整。
+ */
 interface EmployeeSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   employees: Employee[];
-  onAddEmployee: (name: string, role: string, system: ScheduleSystemType, cycleStartDate: string) => void;
+  /** 公司級第一週起始日（僅供顯示說明）。 */
+  companyCycleStartDate: string;
+  /**
+   * 新增同仁。
+   * @param name 姓名
+   * @param role 職稱
+   * @param system 適用制度
+   */
+  onAddEmployee: (name: string, role: string, system: ScheduleSystemType) => void;
   onUpdateEmployee?: (employee: Employee) => void;
   onDeleteEmployee: (id: string) => void;
   onSelectEmployee: (id: string) => void;
   selectedEmployeeId: string;
 }
 
+/**
+ * 同仁名單與個人制度設定（不含公司級第一週起始日）。
+ */
 export const EmployeeSettingsModal: React.FC<EmployeeSettingsModalProps> = ({
   isOpen,
   onClose,
   employees,
+  companyCycleStartDate,
   onAddEmployee,
   onUpdateEmployee,
   onDeleteEmployee,
   onSelectEmployee,
   selectedEmployeeId,
 }) => {
-  const defaultDate = format(new Date(), 'yyyy-MM-01');
-
   const [name, setName] = useState('');
   const [role, setRole] = useState('專任人員');
   const [scheduleSystem, setScheduleSystem] = useState<ScheduleSystemType>('2-week');
-  const [cycleStartDate, setCycleStartDate] = useState<string>(defaultDate);
 
-  // Edit employee state
   const [editingEmpId, setEditingEmpId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Employee>>({});
 
   if (!isOpen) return null;
 
+  /**
+   * 送出新增同仁表單。
+   * @param e 表單事件
+   */
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-
-    onAddEmployee(name.trim(), role, scheduleSystem, cycleStartDate || defaultDate);
+    onAddEmployee(name.trim(), role, scheduleSystem);
     setName('');
   };
 
+  /**
+   * 進入編輯模式。
+   * @param emp 同仁
+   */
   const handleStartEdit = (emp: Employee) => {
     setEditingEmpId(emp.id);
     setEditForm({ ...emp });
   };
 
+  /** 儲存編輯中的同仁。 */
   const handleSaveEdit = () => {
     if (!editingEmpId || !editForm.name || !onUpdateEmployee) return;
-    onUpdateEmployee(editForm as Employee);
+    // 強制沿用公司級週期起日，避免舊欄位殘留造成分歧
+    onUpdateEmployee({
+      ...(editForm as Employee),
+      cycleStartDate: companyCycleStartDate,
+    });
     setEditingEmpId(null);
     setEditForm({});
   };
@@ -67,8 +90,14 @@ export const EmployeeSettingsModal: React.FC<EmployeeSettingsModalProps> = ({
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-[#2D2D2D] font-serif">同仁個人排班與第一週起始日設定</h2>
-              <p className="text-sm text-[#8A8A70]">新增或調整排班同仁，每位同仁可個別設定適用之變形工時制度與第一週起始日</p>
+              <h2 className="text-xl font-bold text-[#2D2D2D] font-serif">同仁個人排班設定</h2>
+              <p className="text-sm text-[#8A8A70]">
+                新增或調整排班同仁與適用制度；公司第一週起始日為{' '}
+                <span className="font-mono font-semibold text-[#5A5A40]">
+                  {companyCycleStartDate}
+                </span>
+                （於「班表設定」統一設定）
+              </p>
             </div>
           </div>
           <button
@@ -79,7 +108,6 @@ export const EmployeeSettingsModal: React.FC<EmployeeSettingsModalProps> = ({
           </button>
         </div>
 
-        {/* Add Employee Form */}
         <form onSubmit={handleAdd} className="bg-[#F8F7EB] p-4 rounded-xl border border-[#E9E7D4] space-y-3">
           <div className="text-sm font-bold text-[#5A5A40] uppercase tracking-wider flex items-center gap-1">
             <UserPlus className="w-3.5 h-3.5" />
@@ -109,7 +137,7 @@ export const EmployeeSettingsModal: React.FC<EmployeeSettingsModalProps> = ({
               />
             </div>
 
-            <div>
+            <div className="sm:col-span-2">
               <label className="block text-sm text-[#8A8A70] mb-1">適用排班制度</label>
               <select
                 value={scheduleSystem}
@@ -121,19 +149,6 @@ export const EmployeeSettingsModal: React.FC<EmployeeSettingsModalProps> = ({
                 <option value="4-week">4週變形工時</option>
                 <option value="8-week">8週變形工時</option>
               </select>
-            </div>
-
-            <div>
-              <label className="block text-sm text-[#8A8A70] mb-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-[#5A5A40]" />
-                <span>第一週 / 週期起始日</span>
-              </label>
-              <input
-                type="date"
-                value={cycleStartDate}
-                onChange={(e) => setCycleStartDate(e.target.value)}
-                className="w-full bg-white border border-[#D9D7C2] rounded-xl px-3 py-2 text-sm text-[#2D2D2D] outline-none focus:ring-2 focus:ring-[#5A5A40] font-mono"
-              />
             </div>
           </div>
 
@@ -148,7 +163,6 @@ export const EmployeeSettingsModal: React.FC<EmployeeSettingsModalProps> = ({
           </div>
         </form>
 
-        {/* Employees list */}
         <div className="space-y-2">
           <div className="text-sm font-bold text-[#8A8A70]">現有成員清單 ({employees.length})</div>
           <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
@@ -173,7 +187,9 @@ export const EmployeeSettingsModal: React.FC<EmployeeSettingsModalProps> = ({
                         <input
                           type="text"
                           value={editForm.name || ''}
-                          onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({ ...prev, name: e.target.value }))
+                          }
                           className="w-full bg-[#F8F7EB] border border-[#D9D7C2] rounded-lg px-2 py-1 text-sm"
                         />
                       </div>
@@ -183,16 +199,23 @@ export const EmployeeSettingsModal: React.FC<EmployeeSettingsModalProps> = ({
                         <input
                           type="text"
                           value={editForm.role || ''}
-                          onChange={(e) => setEditForm((prev) => ({ ...prev, role: e.target.value }))}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({ ...prev, role: e.target.value }))
+                          }
                           className="w-full bg-[#F8F7EB] border border-[#D9D7C2] rounded-lg px-2 py-1 text-sm"
                         />
                       </div>
 
-                      <div>
+                      <div className="sm:col-span-2">
                         <label className="block text-xs text-[#8A8A70] mb-0.5">適用排班制度</label>
                         <select
                           value={editForm.scheduleSystem || '2-week'}
-                          onChange={(e) => setEditForm((prev) => ({ ...prev, scheduleSystem: e.target.value as ScheduleSystemType }))}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({
+                              ...prev,
+                              scheduleSystem: e.target.value as ScheduleSystemType,
+                            }))
+                          }
                           className="w-full bg-[#F8F7EB] border border-[#D9D7C2] rounded-lg px-2 py-1 text-sm"
                         >
                           <option value="standard">一般制 (週休二日)</option>
@@ -200,16 +223,6 @@ export const EmployeeSettingsModal: React.FC<EmployeeSettingsModalProps> = ({
                           <option value="4-week">4週變形工時</option>
                           <option value="8-week">8週變形工時</option>
                         </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs text-[#8A8A70] mb-0.5">第一週起始日</label>
-                        <input
-                          type="date"
-                          value={editForm.cycleStartDate || defaultDate}
-                          onChange={(e) => setEditForm((prev) => ({ ...prev, cycleStartDate: e.target.value }))}
-                          className="w-full bg-[#F8F7EB] border border-[#D9D7C2] rounded-lg px-2 py-1 text-sm font-mono"
-                        />
                       </div>
                     </div>
 
@@ -255,13 +268,8 @@ export const EmployeeSettingsModal: React.FC<EmployeeSettingsModalProps> = ({
                           </span>
                         )}
                       </div>
-                      <div className="text-sm text-[#8A8A70] flex items-center gap-2 mt-0.5">
-                        <span>{emp.role} · 制度：{sysConfig.name}</span>
-                        {emp.cycleStartDate && (
-                          <span className="font-mono text-xs bg-black/5 px-1.5 py-0.2 rounded">
-                            第一週：{emp.cycleStartDate}
-                          </span>
-                        )}
+                      <div className="text-sm text-[#8A8A70] mt-0.5">
+                        {emp.role} · 制度：{sysConfig.name}
                       </div>
                     </div>
                   </div>
@@ -279,19 +287,16 @@ export const EmployeeSettingsModal: React.FC<EmployeeSettingsModalProps> = ({
                         <Edit2 className="w-4 h-4" />
                       </button>
                     )}
-
-                    {employees.length > 1 && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteEmployee(emp.id);
-                        }}
-                        className="p-1.5 text-[#8A8A70] hover:text-[#D17A60] hover:bg-[#D17A60]/10 rounded-lg transition-colors"
-                        title="刪除成員"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteEmployee(emp.id);
+                      }}
+                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="刪除同仁"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               );
@@ -299,10 +304,10 @@ export const EmployeeSettingsModal: React.FC<EmployeeSettingsModalProps> = ({
           </div>
         </div>
 
-        <div className="border-t border-[#E9E7D4] pt-3 flex justify-end">
+        <div className="flex justify-end pt-2 border-t border-[#E9E7D4]">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white font-semibold text-sm rounded-xl transition-colors shadow-sm cursor-pointer"
+            className="px-4 py-2 bg-[#E9E7D4] hover:bg-[#D9D7C2] text-[#5A5A40] font-bold text-sm rounded-xl transition-colors"
           >
             關閉
           </button>

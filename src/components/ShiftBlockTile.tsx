@@ -40,6 +40,16 @@ interface ShiftBlockTileProps {
   isSnappedTarget?: boolean;
   /** 緊湊模式（矩陣檢視等）。 */
   isCompact?: boolean;
+  /**
+   * 隱藏時數／加班／補休列（矩陣檢視關閉加班功能時使用）。
+   * 為 true 時不渲染底部工時列，亦不可調整加班。
+   */
+  hideHoursRow?: boolean;
+  /**
+   * 純色票模式（矩陣）：格內不顯示班別代號文字，僅以色塊＋無障礙標籤辨識。
+   * 亦不顯示箭頭／釘選／拖曳把手等操作列（改由外層黑列批次操作）。
+   */
+  swatchOnly?: boolean;
   /** 是否為不合法拖放目標。 */
   isIllegalTarget?: boolean;
   /** 窄螢幕僅顯示顏色。 */
@@ -91,6 +101,8 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
   onDrop,
   isSnappedTarget = false,
   isCompact = false,
+  hideHoursRow = false,
+  swatchOnly = false,
   isIllegalTarget = false,
   colorOnlyOnNarrow = true,
   overtimeHours = 0,
@@ -116,8 +128,9 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
   const baseHours = shiftType?.workHours || 0;
   const displayHours = Math.round((baseHours + overtimeHours - compLeaveHours) * 10) / 10;
 
-  // 釘選只鎖班別（不可改班／平移／拖放），加班與換休仍可調整
+  // 釘選只鎖班別（不可改班／平移／拖放），加班與換休仍可調整；矩陣可整列關閉
   const canOvertime =
+    !hideHoursRow &&
     !!shiftType &&
     canLogOvertimeOnCategory(shiftType.category) &&
     !!onAdjustOvertime;
@@ -146,8 +159,9 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
   const canEditHours =
     canOvertime && !!onSetDayHours;
 
-  /** 是否顯示時數列（可加班班別，含放假日 0H＋加號）。 */
-  const showHoursRow = canOvertime || overtimeHours > 0 || compLeaveHours > 0;
+  /** 是否顯示時數列（可加班班別，含放假日 0H＋加號；hideHoursRow 時一律隱藏）。 */
+  const showHoursRow =
+    !hideHoursRow && (canOvertime || overtimeHours > 0 || compLeaveHours > 0);
 
   const detailVisibleClass = colorOnlyOnNarrow ? 'hidden md:flex' : 'flex';
   const colorOnlyVisibleClass = colorOnlyOnNarrow ? 'flex md:hidden' : 'hidden';
@@ -368,9 +382,13 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
         if (isPinned) return;
         onDrop && onDrop(e, dateStr);
       }}
-      className={`relative group rounded-lg md:rounded-xl transition-all duration-200 select-none shadow-sm ${
+      className={`relative group transition-all duration-200 select-none shadow-sm ${
+        isCompact || swatchOnly ? 'rounded-md' : 'rounded-lg md:rounded-xl'
+      } ${
         isPinned
-          ? 'ring-2 ring-amber-400/80 shadow-md cursor-default'
+          ? isCompact || swatchOnly
+            ? 'ring-1 ring-amber-400/80 cursor-default'
+            : 'ring-2 ring-amber-400/80 shadow-md cursor-default'
           : isDragOver
           ? 'ring-2 ring-[#5A5A40] scale-105 z-20 shadow-md cursor-grabbing'
           : isSnappedTarget
@@ -387,22 +405,34 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
     >
       {isPinned && (
         <div
-          className={`absolute -top-1.5 -right-1 md:-top-2.5 md:-right-1 bg-amber-500 text-white p-0.5 md:p-1 rounded-full shadow-md z-30 flex items-center justify-center border border-amber-300 ${
-            isNationalLockedPin ? 'cursor-not-allowed' : 'cursor-pointer'
+          className={`absolute flex items-center justify-center border border-amber-300 bg-amber-500 text-white rounded-full shadow-md ${
+            isCompact || swatchOnly
+              ? 'z-0 -top-1 -right-0.5 p-0.5'
+              : 'z-30 -top-1.5 -right-1 md:-top-2.5 md:-right-1 p-0.5 md:p-1'
+          } ${
+            isNationalLockedPin || swatchOnly ? 'cursor-default pointer-events-none' : 'cursor-pointer'
           }`}
           onClick={(e) => {
             e.stopPropagation();
-            // 國／調釘選不可經角標解除
-            if (isNationalLockedPin) return;
+            // 矩陣色票模式僅顯示狀態；國／調亦不可經角標解除
+            if (swatchOnly || isNationalLockedPin) return;
             onTogglePin && onTogglePin(dateStr);
           }}
           title={
             isNationalLockedPin
               ? '國定假日／補班預設釘選，不可解除'
-              : '班別已釘選（不可改班；加班仍可調，點擊可解鎖）'
+              : swatchOnly
+                ? '班別已釘選'
+                : hideHoursRow
+                  ? '班別已釘選（不可改班，點擊可解鎖）'
+                  : '班別已釘選（不可改班；加班仍可調，點擊可解鎖）'
           }
         >
-          <Pin className="w-2.5 h-2.5 md:w-3 md:h-3 fill-white" />
+          <Pin
+            className={`fill-white ${
+              isCompact || swatchOnly ? 'w-2 h-2' : 'w-2.5 h-2.5 md:w-3 md:h-3'
+            }`}
+          />
         </div>
       )}
 
@@ -417,18 +447,37 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
       )}
 
       <div
-        className={`${colorOnlyVisibleClass} flex-col items-center justify-center min-h-[28px] p-0.5 gap-0.5`}
+        className={`${colorOnlyVisibleClass} flex-col items-center justify-center p-0.5 gap-0.5 ${
+          isCompact ? 'min-h-[22px]' : 'min-h-[28px]'
+        }`}
       >
-        {!shiftType && <Plus className="w-3.5 h-3.5 text-[#8A8A70] opacity-70" aria-hidden />}
+        {!shiftType && !swatchOnly && (
+          <Plus
+            className={`text-[#8A8A70] opacity-70 ${isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5'}`}
+            aria-hidden
+          />
+        )}
         {shiftType && <span className="sr-only">{shiftType.code}</span>}
       </div>
 
       <div
-        className={`${detailVisibleClass} flex-col justify-between p-2 pb-1 ${
-          isCompact ? 'min-h-[52px]' : 'min-h-[72px]'
+        className={`${detailVisibleClass} flex-col justify-between ${
+          swatchOnly
+            ? 'min-h-[22px] p-0'
+            : isCompact
+              ? 'min-h-[28px] p-0.5'
+              : 'min-h-[72px] p-2 pb-1'
         }`}
       >
-        <div className="flex items-center justify-between opacity-80 group-hover:opacity-100 text-sm">
+        {/* 矩陣色票模式：不顯示箭頭／釘選／拖曳把手；月曆緊湊模式 hover 才顯示 */}
+        {!swatchOnly && (
+        <div
+          className={`flex items-center justify-between text-sm ${
+            isCompact
+              ? 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto absolute inset-x-0 top-0 px-0.5 z-10'
+              : 'opacity-80 group-hover:opacity-100'
+          }`}
+        >
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -436,16 +485,16 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
               onSlideShift(dateStr, 'left');
             }}
             disabled={isPinned}
-            className={`p-1 rounded transition-colors ${
+            className={`rounded transition-colors ${isCompact ? 'p-0' : 'p-1'} ${
               isPinned
                 ? 'opacity-30 cursor-not-allowed'
                 : 'hover:bg-black/20 opacity-90 hover:opacity-100 cursor-pointer'
             }`}
             title={isPinned ? '班別已釘選，無法平移' : '平移此班別至前一日 (左移)'}
           >
-            <ChevronLeft className="w-3.5 h-3.5" />
+            <ChevronLeft className={isCompact ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'} />
           </button>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -467,14 +516,14 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
               }
             >
               <Pin
-                className={`w-3 h-3 ${
+                className={`${isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3'} ${
                   isPinned ? 'fill-amber-300 text-amber-300' : 'opacity-60 hover:opacity-100'
                 }`}
               />
             </button>
             {!isPinned && (
               <span className="cursor-grab active:cursor-grabbing opacity-70 hover:opacity-100">
-                <GripHorizontal className="w-3.5 h-3.5" />
+                <GripHorizontal className={isCompact ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'} />
               </span>
             )}
           </div>
@@ -485,31 +534,49 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
               onSlideShift(dateStr, 'right');
             }}
             disabled={isPinned}
-            className={`p-1 rounded transition-colors ${
+            className={`rounded transition-colors ${isCompact ? 'p-0' : 'p-1'} ${
               isPinned
                 ? 'opacity-30 cursor-not-allowed'
                 : 'hover:bg-black/20 opacity-90 hover:opacity-100 cursor-pointer'
             }`}
             title={isPinned ? '班別已釘選，無法平移' : '平移此班別至後一日 (右移)'}
           >
-            <ChevronRight className="w-3.5 h-3.5" />
+            <ChevronRight className={isCompact ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'} />
           </button>
         </div>
+        )}
 
-        <div className="text-center py-0.5 pointer-events-none">
-          {shiftType ? (
-            // 月曆／矩陣格子空間有限，只顯示代號避免全稱擠壓
-            <div className="text-base font-black tracking-wider drop-shadow-sm font-mono">
-              {shiftType.code}
-            </div>
-          ) : (
-            <div className="text-sm font-medium text-[#5A5A40] py-1">點擊選取</div>
-          )}
-        </div>
+        {/* 純色票模式不顯示代號／占位文字（改由表格上方圖例說明） */}
+        {!swatchOnly && (
+          <div
+            className={`text-center pointer-events-none ${
+              isCompact ? 'py-0.5 flex-1 flex items-center justify-center' : 'py-0.5'
+            }`}
+          >
+            {shiftType ? (
+              // 月曆／矩陣格子空間有限，只顯示代號避免全稱擠壓
+              <div
+                className={`font-black tracking-wider drop-shadow-sm font-mono ${
+                  isCompact ? 'text-[11px] leading-none' : 'text-base'
+                }`}
+              >
+                {shiftType.code}
+              </div>
+            ) : (
+              <div
+                className={`font-medium text-[#5A5A40] ${
+                  isCompact ? 'text-[10px] leading-none' : 'text-sm py-1'
+                }`}
+              >
+                {isCompact ? '＋' : '點擊選取'}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* 時數列只渲染一次，避免窄／寬雙份 input 搶 focus */}
-      <div className="px-1 pb-1.5 pt-0.5">{hoursRow}</div>
+      {/* 時數列只渲染一次，避免窄／寬雙份 input 搶 focus；矩陣可整列關閉 */}
+      {showHoursRow && <div className="px-1 pb-1.5 pt-0.5">{hoursRow}</div>}
     </div>
   );
 };
