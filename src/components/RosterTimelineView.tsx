@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Employee, NationalHoliday, ShiftType } from '../types';
 import { ShiftBlockTile } from './ShiftBlockTile';
 import { findNearestLegalDate, getEffectiveShift, isEmptyShiftTypeId, requiresMandatoryOvertimeCaution } from '../utils/laborLaws';
-import { EMPTY_SHIFT_TYPE_ID } from '../constants/shifts';
+import { EMPTY_SHIFT_TYPE_ID, canInitiateShiftChange } from '../constants/shifts';
 import { getContrastingTextColor } from '../utils/colorContrast';
 import {
   getShortcutKeyFromEvent,
@@ -31,6 +31,17 @@ interface RosterTimelineViewProps {
   nationalHolidays: NationalHoliday[];
   /** 指定同仁單日選班回呼。 */
   onSelectShift: (employeeId: string, dateStr: string, shiftTypeId: string) => void;
+  /**
+   * 批次套用班別（同仁＋多日）；含國／調時會先開刪假確認 Modal。
+   * @param employeeId 同仁 ID
+   * @param dateStrs 日期清單
+   * @param shiftTypeId 目標班別
+   */
+  onBatchSelectShifts?: (
+    employeeId: string,
+    dateStrs: string[],
+    shiftTypeId: string
+  ) => void;
   /**
    * 套用「調」班前請求指定畫面上的「國」班來源。
    * @param cells 目標格（同仁＋日期）
@@ -70,6 +81,7 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
   emptyShiftShortcutKey = '',
   nationalHolidays,
   onSelectShift,
+  onBatchSelectShifts,
   onRequestMakeupShift,
   onSlideShift,
   onDragDropShift,
@@ -111,20 +123,35 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
       if (!shiftTypeId) return;
 
       e.preventDefault();
-      const unpinned = selectedCells.filter(({ empId, dateStr }) => {
+      // 一般釘選略過；國／調可發起改班（App 會先確認刪假）
+      const applicable = selectedCells.filter(({ empId, dateStr }) => {
         const emp = employees.find((x) => x.id === empId);
-        return !emp?.schedules[dateStr]?.isPinned;
+        if (!emp) return false;
+        const effId = getEffectiveShift(emp.schedules, dateStr, nationalHolidays)
+          .shiftTypeId;
+        return canInitiateShiftChange(emp.schedules[dateStr]?.isPinned, effId);
       });
-      if (unpinned.length === 0) return;
+      if (applicable.length === 0) return;
 
       if (shiftTypeId === 'shift_national_holiday_makeup' && onRequestMakeupShift) {
-        onRequestMakeupShift(unpinned);
+        onRequestMakeupShift(applicable);
         setSelectedCells([]);
         return;
       }
 
-      unpinned.forEach(({ empId, dateStr }) => {
-        onSelectShift(empId, dateStr, shiftTypeId);
+      // 依同仁分組批次套用，國／調才能共用一個刪假確認 Modal
+      const byEmp = new Map<string, string[]>();
+      applicable.forEach(({ empId, dateStr }) => {
+        const list = byEmp.get(empId) ?? [];
+        list.push(dateStr);
+        byEmp.set(empId, list);
+      });
+      byEmp.forEach((dates, empId) => {
+        if (onBatchSelectShifts && dates.length > 0) {
+          onBatchSelectShifts(empId, dates, shiftTypeId);
+        } else {
+          dates.forEach((d) => onSelectShift(empId, d, shiftTypeId));
+        }
       });
       setSelectedCells([]);
     };
@@ -135,7 +162,9 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
     allShiftTypes,
     emptyShiftShortcutKey,
     employees,
+    nationalHolidays,
     onRequestMakeupShift,
+    onBatchSelectShifts,
     onSelectShift,
   ]);
 
@@ -206,25 +235,38 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
   };
 
   /**
-   * 依黑列按鈕批次套用班別（略過釘選格）。
+   * 依黑列按鈕批次套用班別（一般釘選略過；國／調可發起並先確認刪假）。
    * 「調」改走來源「國」班挑選流程。
    * @param shiftTypeId 目標班別 ID
    */
   const handleApplyBatchShift = (shiftTypeId: string) => {
-    const unpinned = selectedCells.filter(({ empId, dateStr }) => {
+    const applicable = selectedCells.filter(({ empId, dateStr }) => {
       const emp = employees.find((e) => e.id === empId);
-      return !emp?.schedules[dateStr]?.isPinned;
+      if (!emp) return false;
+      const effId = getEffectiveShift(emp.schedules, dateStr, nationalHolidays).shiftTypeId;
+      return canInitiateShiftChange(emp.schedules[dateStr]?.isPinned, effId);
     });
-    if (unpinned.length === 0) return;
+    if (applicable.length === 0) return;
 
     if (shiftTypeId === 'shift_national_holiday_makeup' && onRequestMakeupShift) {
-      onRequestMakeupShift(unpinned);
+      onRequestMakeupShift(applicable);
       setSelectedCells([]);
       return;
     }
 
-    unpinned.forEach(({ empId, dateStr }) => {
-      onSelectShift(empId, dateStr, shiftTypeId);
+    // 依同仁分組批次套用，避免多日 forEach 互相覆蓋刪假確認狀態
+    const byEmp = new Map<string, string[]>();
+    applicable.forEach(({ empId, dateStr }) => {
+      const list = byEmp.get(empId) ?? [];
+      list.push(dateStr);
+      byEmp.set(empId, list);
+    });
+    byEmp.forEach((dates, empId) => {
+      if (onBatchSelectShifts && dates.length > 0) {
+        onBatchSelectShifts(empId, dates, shiftTypeId);
+      } else {
+        dates.forEach((d) => onSelectShift(empId, d, shiftTypeId));
+      }
     });
     setSelectedCells([]);
   };
@@ -398,7 +440,12 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
                           dateStr={dStr}
                           shiftType={shiftType}
                           onSlideShift={(d, dir) => onSlideShift(emp.id, d, dir)}
-                          isPinned={!!dayShift?.isPinned}
+                          // 國／調一律視為釘選（不可經釘選鈕解除）
+                          isPinned={
+                            !!dayShift?.isPinned ||
+                            dayShift?.shiftTypeId === 'shift_national_holiday' ||
+                            dayShift?.shiftTypeId === 'shift_national_holiday_makeup'
+                          }
                           onTogglePin={(d) => onTogglePin && onTogglePin(emp.id, d)}
                           isDragOver={
                             dragOverCell?.empId === emp.id && dragOverCell?.dateStr === dStr

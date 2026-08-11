@@ -136,6 +136,33 @@ export const SYSTEM_PROTECTED_SHIFT_IDS = [
 ] as const;
 
 /**
+ * 是否為國定假日「國」或補假「調」班別（預設釘選且不可解除）。
+ * @param shiftTypeId 班別 ID
+ * @returns 為國／調時 true
+ */
+export function isNationalLockedShiftTypeId(shiftTypeId: string | undefined): boolean {
+  return (
+    shiftTypeId === 'shift_national_holiday' ||
+    shiftTypeId === 'shift_national_holiday_makeup'
+  );
+}
+
+/**
+ * 黑列／快捷鍵是否可對該日發起改班。
+ * 一般釘選日略過；國／調雖釘選仍可發起（由上層先確認刪假再改班）。
+ * @param isPinned 班表寫入之釘選狀態
+ * @param effectiveShiftTypeId 當日有效班別 ID
+ * @returns 可發起改班時 true
+ */
+export function canInitiateShiftChange(
+  isPinned: boolean | undefined,
+  effectiveShiftTypeId: string | undefined
+): boolean {
+  if (isNationalLockedShiftTypeId(effectiveShiftTypeId)) return true;
+  return !isPinned;
+}
+
+/**
  * 合併使用者已存班別與 DEFAULT_SHIFTS，補上缺失的內建班別（如新增的「調」）。
  * 亦為尚未寫入 shortcutKey 的舊資料填入內建預設捷徑（僅當欄位為 undefined）。
  * @param stored 自 LocalStorage 還原的班別清單

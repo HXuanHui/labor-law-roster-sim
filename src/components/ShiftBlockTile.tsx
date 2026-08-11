@@ -22,7 +22,7 @@ interface ShiftBlockTileProps {
   shiftType: ShiftType | undefined;
   /** 班別左右平移回呼。 */
   onSlideShift: (dateStr: string, direction: 'left' | 'right') => void;
-  /** 是否釘選鎖定。 */
+  /** 是否釘選鎖定班別（不鎖加班／換休）。 */
   isPinned?: boolean;
   /** 切換釘選回呼。 */
   onTogglePin?: (dateStr: string) => void;
@@ -116,17 +116,16 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
   const baseHours = shiftType?.workHours || 0;
   const displayHours = Math.round((baseHours + overtimeHours - compLeaveHours) * 10) / 10;
 
+  // 釘選只鎖班別（不可改班／平移／拖放），加班與換休仍可調整
   const canOvertime =
     !!shiftType &&
     canLogOvertimeOnCategory(shiftType.category) &&
-    !isPinned &&
     !!onAdjustOvertime;
   const maxOt = shiftType ? getMaxDailyOvertimeHours(shiftType.workHours) : 0;
   // 當日已有補休時，＋先還原補休；否則在上限內加延長工時
   const canUndoCompLeave =
     !!shiftType &&
     shiftType.category === 'work' &&
-    !isPinned &&
     !!onTakeCompLeave &&
     compLeaveHours >= OVERTIME_STEP_HOURS;
   const canAddOt = canOvertime && overtimeHours < maxOt;
@@ -137,14 +136,13 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
   const canTakeCompLeave =
     !!shiftType &&
     shiftType.category === 'work' &&
-    !isPinned &&
     !!onTakeCompLeave &&
     overtimeHours < OVERTIME_STEP_HOURS &&
     compLeaveBankHours >= OVERTIME_STEP_HOURS &&
     baseHours - compLeaveHours >= OVERTIME_STEP_HOURS;
   const canMinus = canReduceOt || canTakeCompLeave;
 
-  /** 可否點擊時數直接輸入（可登錄加班之班別且未釘選）。 */
+  /** 可否點擊時數直接輸入（可登錄加班之班別；釘選不影響）。 */
   const canEditHours =
     canOvertime && !!onSetDayHours;
 
@@ -160,6 +158,11 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
       (compLeaveHours > 0 ? `（已補休 ${compLeaveHours}H）` : '') +
       (mandatoryOvertimeCaution ? '（例假：原則禁止加班）' : '')
     : '尚未排班';
+
+  // 國／調預設釘選且不可經 UI 解除
+  const isNationalLockedPin =
+    shiftType?.category === 'national_holiday' ||
+    shiftType?.category === 'national_holiday_makeup';
 
   // 進入編輯時聚焦並全選
   useEffect(() => {
@@ -384,12 +387,20 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
     >
       {isPinned && (
         <div
-          className="absolute -top-1.5 -right-1 md:-top-2.5 md:-right-1 bg-amber-500 text-white p-0.5 md:p-1 rounded-full shadow-md z-30 flex items-center justify-center border border-amber-300 cursor-pointer"
+          className={`absolute -top-1.5 -right-1 md:-top-2.5 md:-right-1 bg-amber-500 text-white p-0.5 md:p-1 rounded-full shadow-md z-30 flex items-center justify-center border border-amber-300 ${
+            isNationalLockedPin ? 'cursor-not-allowed' : 'cursor-pointer'
+          }`}
           onClick={(e) => {
             e.stopPropagation();
+            // 國／調釘選不可經角標解除
+            if (isNationalLockedPin) return;
             onTogglePin && onTogglePin(dateStr);
           }}
-          title="班別已釘選鎖定（點擊可解鎖）"
+          title={
+            isNationalLockedPin
+              ? '國定假日／補班預設釘選，不可解除'
+              : '班別已釘選（不可改班；加班仍可調，點擊可解鎖）'
+          }
         >
           <Pin className="w-2.5 h-2.5 md:w-3 md:h-3 fill-white" />
         </div>
@@ -438,10 +449,22 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                if (isNationalLockedPin) return;
                 onTogglePin && onTogglePin(dateStr);
               }}
-              className="p-0.5 rounded hover:bg-black/20 opacity-80 hover:opacity-100 transition-colors cursor-pointer"
-              title={isPinned ? '點擊解除釘選' : '點擊釘選此班別'}
+              disabled={isNationalLockedPin}
+              className={`p-0.5 rounded transition-colors ${
+                isNationalLockedPin
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'hover:bg-black/20 opacity-80 hover:opacity-100 cursor-pointer'
+              }`}
+              title={
+                isNationalLockedPin
+                  ? '國定假日／補班預設釘選，不可解除'
+                  : isPinned
+                    ? '點擊解除釘選'
+                    : '點擊釘選此班別'
+              }
             >
               <Pin
                 className={`w-3 h-3 ${

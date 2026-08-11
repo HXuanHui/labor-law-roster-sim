@@ -56,7 +56,7 @@ export interface DayShift {
    * @deprecated 改以加班庫存＋補休時數處理；保留相容。
    */
   overtimeSettlement?: 'pay' | 'comp_leave';
-  /** 是否釘選鎖定。 */
+  /** 是否釘選鎖定班別（不可改班／拖放；加班與換休仍可調）。 */
   isPinned?: boolean;
 }
 

@@ -3,7 +3,7 @@ import { Employee, NationalHoliday, ScheduleSystemType, ShiftType, SnapResult } 
 import { getMonthCalendarGrid } from '../utils/perpetualCalendar';
 import { ShiftBlockTile } from './ShiftBlockTile';
 import { findNearestLegalDate, getEffectiveShift, getCycleInfoForDate, isEmptyShiftTypeId, requiresMandatoryOvertimeCaution } from '../utils/laborLaws';
-import { EMPTY_SHIFT_TYPE_ID } from '../constants/shifts';
+import { EMPTY_SHIFT_TYPE_ID, canInitiateShiftChange } from '../constants/shifts';
 import { getContrastingTextColor } from '../utils/colorContrast';
 import {
   getShortcutKeyFromEvent,
@@ -135,22 +135,30 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
       if (!shiftTypeId) return;
 
       e.preventDefault();
-      // 與黑列按鈕相同路徑：略過釘選、「調」走挑選流程
-      const unpinnedDates = selectedDates.filter(
-        (dStr) => !selectedEmployee.schedules[dStr]?.isPinned
-      );
-      if (unpinnedDates.length === 0) return;
+      // 一般釘選略過；國／調可發起改班（App 會先確認刪假）
+      const applicableDates = selectedDates.filter((dStr) => {
+        const effId = getEffectiveShift(
+          selectedEmployee.schedules,
+          dStr,
+          nationalHolidays
+        ).shiftTypeId;
+        return canInitiateShiftChange(
+          selectedEmployee.schedules[dStr]?.isPinned,
+          effId
+        );
+      });
+      if (applicableDates.length === 0) return;
 
       if (shiftTypeId === 'shift_national_holiday_makeup' && onRequestMakeupShift) {
-        onRequestMakeupShift(unpinnedDates);
+        onRequestMakeupShift(applicableDates);
         setSelectedDates([]);
         return;
       }
 
       if (onBatchSelectShifts) {
-        onBatchSelectShifts(unpinnedDates, shiftTypeId);
+        onBatchSelectShifts(applicableDates, shiftTypeId);
       } else {
-        unpinnedDates.forEach((dStr) => {
+        applicableDates.forEach((dStr) => {
           onSelectShift(dStr, shiftTypeId);
         });
       }
@@ -165,6 +173,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
     allShiftTypes,
     emptyShiftShortcutKey,
     selectedEmployee.schedules,
+    nationalHolidays,
     onRequestMakeupShift,
     onBatchSelectShifts,
     onSelectShift,
@@ -245,29 +254,37 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
   };
 
   /**
-   * 將目前選取日期批次套用班別（略過已釘選）。
+   * 將目前選取日期批次套用班別（一般釘選略過；國／調可發起並先確認刪假）。
    * 「調」班改走來源挑選（指定畫面上哪個「國」班）。
    * @param shiftTypeId 目標班別 ID
    */
   const handleApplyBatchShift = (shiftTypeId: string) => {
     if (selectedDates.length === 0) return;
 
-    const unpinnedDates = selectedDates.filter(
-      (dStr) => !selectedEmployee.schedules[dStr]?.isPinned
-    );
-    if (unpinnedDates.length === 0) return;
+    const applicableDates = selectedDates.filter((dStr) => {
+      const effId = getEffectiveShift(
+        selectedEmployee.schedules,
+        dStr,
+        nationalHolidays
+      ).shiftTypeId;
+      return canInitiateShiftChange(
+        selectedEmployee.schedules[dStr]?.isPinned,
+        effId
+      );
+    });
+    if (applicableDates.length === 0) return;
 
     // 手動「調」必須指定對應的畫面「國」班，才能記入休／例
     if (shiftTypeId === 'shift_national_holiday_makeup' && onRequestMakeupShift) {
-      onRequestMakeupShift(unpinnedDates);
+      onRequestMakeupShift(applicableDates);
       setSelectedDates([]);
       return;
     }
 
     if (onBatchSelectShifts) {
-      onBatchSelectShifts(unpinnedDates, shiftTypeId);
+      onBatchSelectShifts(applicableDates, shiftTypeId);
     } else {
-      unpinnedDates.forEach((dStr) => {
+      applicableDates.forEach((dStr) => {
         onSelectShift(dStr, shiftTypeId);
       });
     }
@@ -612,7 +629,11 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                         snappedFeedback?.wasAdjusted &&
                         snappedFeedback.snappedDate === day.dateStr;
                       const isSelected = selectedDates.includes(day.dateStr);
-                      const isPinned = !!dayShift?.isPinned;
+                      // 國／調視為釘選（即使尚未寫入 isPinned）
+                      const isPinned =
+                        !!dayShift?.isPinned ||
+                        dayShift?.shiftTypeId === 'shift_national_holiday' ||
+                        dayShift?.shiftTypeId === 'shift_national_holiday_makeup';
 
                       // 拖曳中預先標示不合法落點
                       let isIllegalTarget = false;
