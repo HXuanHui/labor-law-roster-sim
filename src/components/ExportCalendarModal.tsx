@@ -159,6 +159,17 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
     window.print();
   };
 
+  /**
+   * 組出說明區班別對照文字：代號：名稱（時數H），去掉 name 內建括號（含英文 OFF/HOL 等）。
+   * @param st 班別
+   * @returns 例如「早：早班（8H）」
+   */
+  const formatShiftLegendLabel = (st: ShiftType): string => {
+    // 去掉 name 尾端「 (xxx)」或「（xxx）」，避免與外層時數／英文代號重複
+    const cleanName = st.name.replace(/\s*[(（][^)）]*[)）]\s*$/u, '').trim() || st.name;
+    return `${st.code}：${cleanName}（${st.workHours}H）`;
+  };
+
   return (
     <div className="export-print-root fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
       <div className="export-print-sheet bg-white border border-[#E9E7D4] rounded-2xl w-full max-w-6xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden text-[#2D2D2D]">
@@ -323,7 +334,6 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
 
                 <div className="export-print-meta text-right text-sm text-[#8A8A70]">
                   <div>製表日期：{format(new Date(), 'yyyy/MM/dd')}</div>
-                  <div className="font-mono text-xs">自訂班別色塊版</div>
                 </div>
               </div>
 
@@ -353,7 +363,7 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                           color: getContrastingTextColor(st.color),
                         }}
                       >
-                        {st.code}：{st.name} ({st.workHours}H)
+                        {formatShiftLegendLabel(st)}
                       </span>
                     ))}
                   </div>
@@ -372,7 +382,7 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                     return (
                       <div
                         key={monthNum}
-                        className="export-print-year-month border-2 border-[#2D2D2D] rounded-xl bg-white overflow-hidden shadow-xs flex flex-col justify-between"
+                        className="export-print-year-month border border-[#2D2D2D] rounded-xl bg-white overflow-hidden shadow-xs flex flex-col justify-between"
                       >
                         {/* Month Header */}
                         <div className="export-print-year-month-title bg-[#5A5A40] text-white text-center py-1 font-bold text-sm font-serif border-b border-[#2D2D2D]">
@@ -415,16 +425,11 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                               return (
                                 <div
                                   key={cIdx}
-                                  className="export-print-year-day h-6 flex flex-col items-center justify-center rounded-xs font-mono font-bold border border-black/10 relative overflow-hidden"
+                                  className="export-print-year-day h-6 flex flex-col items-center justify-center rounded-xs font-mono font-bold relative overflow-hidden"
                                   style={bgStyle}
                                   title={`${cell.dateStr} - ${shiftType?.name || '休'}`}
                                 >
                                   <span className="export-print-year-day-num leading-none text-xs">{cell.dayNumber}</span>
-                                  {shiftType && (
-                                    <span className="export-print-year-day-code text-xs opacity-90 leading-none mt-0.5 scale-90">
-                                      {shiftType.code}
-                                    </span>
-                                  )}
                                 </div>
                               );
                             })}
@@ -444,7 +449,7 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
 
               {/* Scope === 'month' (Single Month View) */}
               {exportScope === 'month' && (
-                <div className="export-print-month-view border-2 border-[#2D2D2D] rounded-2xl bg-white overflow-hidden shadow-sm flex flex-col min-h-0">
+                <div className="export-print-month-view border border-[#2D2D2D] rounded-2xl bg-white overflow-hidden shadow-sm flex flex-col min-h-0">
                   {/* Single Month Header */}
                   <div className="export-print-month-title bg-[#5A5A40] text-white p-3 font-bold text-base font-serif flex items-center justify-between">
                     <span>{selectedYear}年 {selectedMonth}月 排班月曆表</span>
@@ -466,47 +471,40 @@ export const ExportCalendarModal: React.FC<ExportCalendarModalProps> = ({
                   </div>
 
                   {/* Large Day Cells：6 週固定列，列印時均分剩餘 A4 高度 */}
-                  <div className="export-print-month-days grid grid-cols-7 grid-rows-6 border-b border-gray-300 flex-1 min-h-0">
+                  <div className="export-print-month-days grid grid-cols-7 grid-rows-6 flex-1 min-h-0">
                     {getMonthMatrix(selectedYear, selectedMonth - 1).cells.map((cell, cIdx) => {
                       if (!cell.dayNumber || !cell.dateStr) {
-                        return <div key={cIdx} className="export-print-month-day min-h-[72px] bg-gray-50 border-r border-b border-gray-200" />;
+                        return <div key={cIdx} className="export-print-month-day min-h-[72px] bg-gray-50" />;
                       }
 
                       const { shiftType, isHoliday, holidayObj } = getDayShiftInfo(emp, cell.dateStr);
 
+                      // 月曆格僅顯示日期數字；班別以底色表達，代號改由說明區對照
+                      let dayBgStyle: React.CSSProperties | undefined;
+                      if (shiftType) {
+                        dayBgStyle = {
+                          backgroundColor: shiftType.color,
+                          color: getContrastingTextColor(shiftType.color),
+                        };
+                      }
+
                       return (
                         <div
                           key={cIdx}
-                          className="export-print-month-day min-h-[72px] p-1.5 border-r border-b border-gray-300 flex flex-col justify-between hover:bg-gray-50 transition-colors"
+                          className="export-print-month-day min-h-[72px] p-1.5 flex flex-col hover:bg-gray-50 transition-colors"
+                          style={dayBgStyle}
+                          title={`${cell.dateStr} - ${shiftType?.name || '休'}`}
                         >
                           <div className="flex items-center justify-between gap-1">
-                            <span className="export-print-month-day-num font-bold font-mono text-sm text-[#2D2D2D]">{cell.dayNumber}</span>
+                            <span className="export-print-month-day-num font-bold font-mono text-sm text-inherit">
+                              {cell.dayNumber}
+                            </span>
                             {isHoliday && (
                               <span className="export-print-month-holiday text-sm bg-[#D17A60] text-white px-1 rounded font-bold truncate">
                                 {holidayObj?.name || '國定假'}
                               </span>
                             )}
                           </div>
-
-                          {shiftType ? (
-                            <div
-                              className="export-print-month-shift p-1 rounded-lg text-sm font-bold text-center mt-1 border border-black/10 shadow-xs"
-                              style={{
-                                backgroundColor: shiftType.color,
-                                color: getContrastingTextColor(shiftType.color),
-                              }}
-                            >
-                              <div className="flex items-center justify-between px-0.5 gap-1">
-                                <span className="text-xs">{shiftType.code}</span>
-                                <span className="truncate">{shiftType.name}</span>
-                              </div>
-                              <div className="text-sm opacity-80 text-right mt-0.5">
-                                {shiftType.workHours > 0 ? `${shiftType.workHours}H` : '例休'}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-sm text-gray-400 text-center py-2">-</div>
-                          )}
                         </div>
                       );
                     })}

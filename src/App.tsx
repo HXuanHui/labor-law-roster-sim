@@ -944,9 +944,9 @@ export default function App() {
     });
   }, [nationalHolidays, employeeIdsKey]);
   return (
-    <div className="min-h-screen bg-[#FAF9F5] text-[#2D2D2D] font-sans flex flex-col antialiased">
+    <div className="app-root min-h-screen bg-[#FAF9F5] text-[#2D2D2D] font-sans flex flex-col antialiased">
       {/* Sticky Top Bar (Header + Employee Selector + System Selector) */}
-      <div className="sticky top-0 z-40 bg-[#FAF9F5] shadow-sm border-b border-[#E9E7D4]">
+      <div className="no-print sticky top-0 z-40 bg-[#FAF9F5] shadow-sm border-b border-[#E9E7D4]">
         <Header
           currentSystem={currentSystem}
           onSelectSystem={handleSelectSystem}
@@ -975,7 +975,7 @@ export default function App() {
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main className="no-print flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* View Mode Toggle Bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-[#E9E7D4] pb-4">
           <div className="flex items-center space-x-2">
@@ -1128,7 +1128,7 @@ export default function App() {
       </main>
 
       {/* 頁尾免責／贊助提示：小字置底，避免與主內容搶視覺 */}
-      <footer className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-6 pt-2">
+      <footer className="no-print max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-6 pt-2">
         <p className="text-center text-xs text-[#8A8A70] leading-relaxed">
           本工具免費使用，僅供排班規劃與
           <button
