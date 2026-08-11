@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Coffee, Heart, Info, MessageCircle, X } from 'lucide-react';
+
+/** 「關於」標籤頁識別碼。 */
+export type AboutTabId = 'tool' | 'feedback' | 'support';
 
 /**
  * 「關於」Modal 屬性。
@@ -11,10 +14,12 @@ interface AboutModalProps {
   onClose: () => void;
   /** 開啟免責說明（自「關於本工具」內文連結）。 */
   onOpenDisclaimer: () => void;
+  /**
+   * 開啟時預設選中的標籤。
+   * 例如頁尾「請我杯咖啡」應直接落到支援維護。
+   */
+  initialTabId?: AboutTabId;
 }
-
-/** 「關於」標籤頁識別碼。 */
-type AboutTabId = 'tool' | 'author' | 'feedback';
 
 /**
  * 「關於」標籤頁定義。
@@ -31,23 +36,32 @@ interface AboutTab {
 /** 三個說明標籤（版面比照使用說明側欄）。 */
 const ABOUT_TABS: AboutTab[] = [
   { id: 'tool', title: '關於本工具', icon: <Info className="w-5 h-5" /> },
-  { id: 'author', title: '關於我', icon: <Coffee className="w-5 h-5" /> },
   { id: 'feedback', title: '意見回饋', icon: <MessageCircle className="w-5 h-5" /> },
+  { id: 'support', title: '支援維護', icon: <Coffee className="w-5 h-5" /> },
 ];
 
 /**
- * 「關於」：以標籤頁呈現工具緣起、作者／贊助與回饋管道。
+ * 「關於」：以標籤頁呈現工具緣起、回饋管道與支援維護。
  *
  * @param props.isOpen 是否顯示
  * @param props.onClose 關閉回呼
  * @param props.onOpenDisclaimer 開啟免責說明
+ * @param props.initialTabId 開啟時預設標籤
  */
 export const AboutModal: React.FC<AboutModalProps> = ({
   isOpen,
   onClose,
   onOpenDisclaimer,
+  initialTabId = 'tool',
 }) => {
-  const [activeTabId, setActiveTabId] = useState<AboutTabId>(ABOUT_TABS[0].id);
+  const [activeTabId, setActiveTabId] = useState<AboutTabId>(initialTabId);
+
+  // 每次開啟時依呼叫端指定的標籤切換（關閉期間使用者選過的分頁不保留）
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTabId(initialTabId);
+    }
+  }, [isOpen, initialTabId]);
 
   if (!isOpen) return null;
 
@@ -73,7 +87,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
               >
                 關於
               </h2>
-              <p className="text-sm text-[#8A8A70] mt-0.5">工具緣起、作者與回饋</p>
+              <p className="text-sm text-[#8A8A70] mt-0.5">工具緣起、回饋與支援維護</p>
             </div>
           </div>
           <button
@@ -144,15 +158,6 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                 </div>
               )}
 
-              {activeTab.id === 'author' && (
-                <div className="space-y-3 rounded-xl border border-[#D9A05B]/35 bg-[#D9A05B]/10 p-3.5">
-                  <p className="text-[#5A4A30]">
-                    作者簡介之後再補。若這個工具對你有幫助，歡迎請我喝杯咖啡——贊助連結與 QR Code
-                    尚未放上，之後會補。
-                  </p>
-                </div>
-              )}
-
               {activeTab.id === 'feedback' && (
                 <div className="space-y-3 rounded-xl border border-[#E9E7D4] bg-white p-3.5">
                   <p className="text-[#2D2D2D]">
@@ -167,6 +172,14 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                     <MessageCircle className="w-4 h-4" />
                     前往 GitHub Discussions
                   </a>
+                </div>
+              )}
+
+              {activeTab.id === 'support' && (
+                <div className="space-y-3 rounded-xl border border-[#D9A05B]/35 bg-[#D9A05B]/10 p-3.5">
+                  <p className="text-[#5A4A30]">
+                    如果這個工具對你有幫助，歡迎請我喝杯咖啡支持維護。
+                  </p>
                 </div>
               )}
             </section>

@@ -74,6 +74,7 @@ const hourBtnClass =
 
 /**
  * 單日班別色塊。
+ * 畫面僅顯示班別代號（全稱改由 title／aria-label 提供）。
  * 顯示工時＝正常＋延長−補休（例：8+0.5→8.5H）。
  * 點擊時數可直接輸入；左側 −／右側 ＋ 仍可逐步調整。
  */
@@ -474,15 +475,9 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
 
         <div className="text-center py-0.5 pointer-events-none">
           {shiftType ? (
-            <div>
-              <div className="text-base font-black tracking-wider drop-shadow-sm font-mono">
-                {shiftType.code}
-              </div>
-              {!isCompact && (
-                <div className="text-sm font-medium opacity-90 truncate max-w-[90px] mx-auto">
-                  {shiftType.name.split(' ')[0]}
-                </div>
-              )}
+            // 月曆／矩陣格子空間有限，只顯示代號避免全稱擠壓
+            <div className="text-base font-black tracking-wider drop-shadow-sm font-mono">
+              {shiftType.code}
             </div>
           ) : (
             <div className="text-sm font-medium text-[#5A5A40] py-1">點擊選取</div>

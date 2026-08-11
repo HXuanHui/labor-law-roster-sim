@@ -42,7 +42,7 @@ import { UserGuideModal } from './components/UserGuideModal';
 import { DisclaimerModal } from './components/DisclaimerModal';
 import { LegalInfoModal } from './components/LegalInfoModal';
 import { ExportCalendarModal } from './components/ExportCalendarModal';
-import { AboutModal } from './components/AboutModal';
+import { AboutModal, type AboutTabId } from './components/AboutModal';
 import {
   collectNationalShiftCandidates,
   MakeupSourcePickerModal,
@@ -71,6 +71,8 @@ export default function App() {
   const [isDisclaimerModalOpen, setIsDisclaimerModalOpen] = useState(false);
   const [isLegalInfoModalOpen, setIsLegalInfoModalOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+  /** 開啟「關於」時預設落地的分頁（頁尾咖啡連到支援維護）。 */
+  const [aboutInitialTabId, setAboutInitialTabId] = useState<AboutTabId>('tool');
   /** 初始化完成後：關閉使用說明時再自動開啟免責說明。 */
   const [openDisclaimerAfterGuide, setOpenDisclaimerAfterGuide] = useState(false);
 
@@ -1018,7 +1020,10 @@ export default function App() {
           onOpenUserGuideModal={() => setIsUserGuideModalOpen(true)}
           onOpenDisclaimerModal={() => setIsDisclaimerModalOpen(true)}
           onOpenLegalModal={() => setIsLegalInfoModalOpen(true)}
-          onOpenAboutModal={() => setIsAboutModalOpen(true)}
+          onOpenAboutModal={() => {
+            setAboutInitialTabId('tool');
+            setIsAboutModalOpen(true);
+          }}
           onClearAllData={handleClearAllData}
           onExportJSON={handleExportJSON}
           onPrint={() => setIsExportModalOpen(true)}
@@ -1210,10 +1215,14 @@ export default function App() {
           。若幫到你，
           <button
             type="button"
-            onClick={() => setIsAboutModalOpen(true)}
+            onClick={() => {
+              // 頁尾咖啡入口直接開到「支援維護」分頁
+              setAboutInitialTabId('support');
+              setIsAboutModalOpen(true);
+            }}
             className="underline underline-offset-2 hover:text-[#5A5A40] transition-colors cursor-pointer"
           >
-            歡迎請我杯咖啡（還沒放）
+            歡迎請我杯咖啡
           </button>
         </p>
       </footer>
@@ -1282,6 +1291,7 @@ export default function App() {
 
       <AboutModal
         isOpen={isAboutModalOpen}
+        initialTabId={aboutInitialTabId}
         onClose={() => setIsAboutModalOpen(false)}
         onOpenDisclaimer={() => {
           // 先關關於再開免責，避免兩層 Modal 疊加
