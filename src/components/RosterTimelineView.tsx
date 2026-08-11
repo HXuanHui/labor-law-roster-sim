@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Employee, NationalHoliday, ShiftType } from '../types';
 import { ShiftBlockTile } from './ShiftBlockTile';
-import { findNearestLegalDate, getEffectiveShift, isEmptyShiftTypeId } from '../utils/laborLaws';
+import { findNearestLegalDate, getEffectiveShift, isEmptyShiftTypeId, requiresMandatoryOvertimeCaution } from '../utils/laborLaws';
 import { EMPTY_SHIFT_TYPE_ID } from '../constants/shifts';
 import { getContrastingTextColor } from '../utils/colorContrast';
 import { Users, ChevronLeft, ChevronRight, Layers, XCircle, Plus } from 'lucide-react';
@@ -410,6 +410,12 @@ export const RosterTimelineView: React.FC<RosterTimelineViewProps> = ({
                               ? (d, hours) => onSetDayHours(emp.id, d, hours)
                               : undefined
                           }
+                          mandatoryOvertimeCaution={requiresMandatoryOvertimeCaution(
+                            shiftType?.category,
+                            dStr,
+                            nationalHolidays,
+                            emp.schedules
+                          )}
                         />
                       </td>
                     );

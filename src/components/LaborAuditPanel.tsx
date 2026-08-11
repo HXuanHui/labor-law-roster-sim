@@ -358,6 +358,16 @@ export const LaborAuditPanel: React.FC<LaborAuditPanelProps> = ({
               </div>
             </div>
 
+            {/* 放假日出勤：與頂部「法規說明」一致之精簡摘要 */}
+            <div className="bg-[#D9A05B]/10 border border-[#D9A05B]/30 p-3 rounded-xl text-sm text-[#2D2D2D] space-y-1.5">
+              <div className="font-bold text-[#5A5A40]">放假日加班（勞基法第36、39、40條）</div>
+              <p>
+                休息日／休假（含國定假日）經同意可出勤加班；
+                <strong className="font-bold">例假原則禁止</strong>
+                ，僅天災、事變或突發事件例外，並應加給工資、事後給假且報備。本模擬不計算加班費。
+              </p>
+            </div>
+
             <div className="flex justify-end pt-2">
               <button
                 type="button"

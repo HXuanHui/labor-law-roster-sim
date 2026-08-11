@@ -106,7 +106,8 @@ export type LaborRuleViolation = {
     | 'daily_hours_exceeded'
     | 'monthly_overtime_exceeded'
     | 'weekly_hours_exceeded'
-    | 'cycle_overtime_exceeded';
+    | 'cycle_overtime_exceeded'
+    | 'mandatory_overtime';
   severity: 'error' | 'warning';
   article: string; // e.g. "勞基法第36條"
   title: string;

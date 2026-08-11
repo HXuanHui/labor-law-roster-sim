@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Employee, NationalHoliday, ScheduleSystemType, ShiftType, SnapResult } from '../types';
 import { getMonthCalendarGrid } from '../utils/perpetualCalendar';
 import { ShiftBlockTile } from './ShiftBlockTile';
-import { findNearestLegalDate, getEffectiveShift, getCycleInfoForDate, isEmptyShiftTypeId } from '../utils/laborLaws';
+import { findNearestLegalDate, getEffectiveShift, getCycleInfoForDate, isEmptyShiftTypeId, requiresMandatoryOvertimeCaution } from '../utils/laborLaws';
 import { EMPTY_SHIFT_TYPE_ID } from '../constants/shifts';
 import { getContrastingTextColor } from '../utils/colorContrast';
 import {
@@ -685,6 +685,12 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                               onAdjustOvertime={onAdjustOvertime}
                               onTakeCompLeave={onTakeCompLeave}
                               onSetDayHours={onSetDayHours}
+                              mandatoryOvertimeCaution={requiresMandatoryOvertimeCaution(
+                                shiftType?.category,
+                                day.dateStr,
+                                nationalHolidays,
+                                selectedEmployee.schedules
+                              )}
                             />
                           </div>
                         </div>

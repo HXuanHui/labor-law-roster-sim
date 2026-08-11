@@ -150,6 +150,23 @@ export function countsTowardRestDay(
 }
 
 /**
+ * 當日是否屬「例假」而需加班強提醒（含「調」替補例假配額之日）。
+ * @param category 班別類別
+ * @param dateStr 日期
+ * @param nationalHolidays 假日清單
+ * @param schedules 班表
+ * @returns 例假態樣時 true
+ */
+export function requiresMandatoryOvertimeCaution(
+  category: ShiftType['category'] | undefined,
+  dateStr: string,
+  nationalHolidays: NationalHoliday[],
+  schedules?: Record<string, DayShift>
+): boolean {
+  return countsTowardMandatoryOff(category, dateStr, nationalHolidays, schedules);
+}
+
+/**
  * 是否為休／例／調等「免出勤且受跨週期移動限制」之日。
  * 國定假日原日本身可被週末覆寫情境處理；「調」與休、例同屬應保護之免出勤。
  */
@@ -358,13 +375,20 @@ export function checkCompliance(
   // 1b. 月延長工時累計（勞基法第32條一般上限 46 小時）
   let monthlyOvertime = 0;
   const otDates: string[] = [];
+  /** 例假（含調→例）卻登錄加班之日 */
+  const mandatoryOtDates: string[] = [];
   let cursor = start;
   while (cursor <= end) {
     const dStr = format(cursor, 'yyyy-MM-dd');
-    const dayShift = schedules[dStr];
-    if (dayShift?.overtimeHours && dayShift.overtimeHours > 0) {
-      monthlyOvertime += dayShift.overtimeHours;
+    const dayShift = schedules[dStr] ?? getEffectiveShift(schedules, dStr, nationalHolidays);
+    const ot = dayShift?.overtimeHours || 0;
+    if (ot > 0) {
+      monthlyOvertime += ot;
       otDates.push(dStr);
+      const st = getShiftType(dayShift.shiftTypeId, shiftTypes);
+      if (requiresMandatoryOvertimeCaution(st?.category, dStr, nationalHolidays, schedules)) {
+        mandatoryOtDates.push(dStr);
+      }
     }
     cursor = addDays(cursor, 1);
   }
@@ -377,6 +401,18 @@ export function checkCompliance(
       title: '每月延長工時超限',
       message: `本區間累計加班 ${monthlyOvertime} 小時，超過一般上限 ${MAX_MONTHLY_OVERTIME_HOURS} 小時（經勞資會議同意並報備者另有彈性，此處採一般上限）。`,
       dates: otDates,
+    });
+  }
+
+  // 1b-2. 例假日登錄加班：原則禁止（僅天災事變等例外）
+  if (mandatoryOtDates.length > 0) {
+    violations.push({
+      type: 'mandatory_overtime',
+      severity: 'warning',
+      article: '勞基法第36條／第40條',
+      title: '例假日原則禁止加班',
+      message: `有 ${mandatoryOtDates.length} 日為例假（或調班替補例假）卻已登錄加班。例假僅限天災、事變或突發事件始得出勤，並應加給工資、事後給假且報備主管機關；一般狀況不得要求例假加班。`,
+      dates: mandatoryOtDates,
     });
   }
 
@@ -438,10 +474,14 @@ export function checkCompliance(
       const shiftType = getShiftType(dayShift.shiftTypeId, shiftTypes);
 
       if (shiftType) {
+        const ot = dayShift.overtimeHours || 0;
+        // 放假日加班也計入週期延長工時與單日 12H
+        if (ot > 0) {
+          cycleOvertimeHours += ot;
+        }
+
         if (shiftType.category === 'work') {
           totalWorkHours += shiftType.workHours;
-          const ot = dayShift.overtimeHours || 0;
-          cycleOvertimeHours += ot;
           const dayTotal = shiftType.workHours + ot;
 
           // 單日正常＋延長合計不得超過 12 小時
@@ -464,7 +504,18 @@ export function checkCompliance(
               dates: [dStr],
             });
           }
-        } else if (countsTowardMandatoryOff(shiftType.category, dStr, nationalHolidays, schedules)) {
+        } else if (ot > 12) {
+          violations.push({
+            type: 'daily_hours_exceeded',
+            severity: 'error',
+            article: '勞基法第32條',
+            title: '單日總工時超限（含加班）',
+            message: `${dStr}（放假日）出勤／加班 ${ot}H，超過單日合計 12 小時上限。`,
+            dates: [dStr],
+          });
+        }
+
+        if (countsTowardMandatoryOff(shiftType.category, dStr, nationalHolidays, schedules)) {
           mandatoryOffCount++;
         } else if (countsTowardRestDay(shiftType.category, dStr, nationalHolidays, schedules)) {
           restDayCount++;

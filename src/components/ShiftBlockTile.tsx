@@ -9,7 +9,7 @@ import {
   Plus,
   Minus,
 } from 'lucide-react';
-import { OVERTIME_STEP_HOURS, getMaxDailyOvertimeHours } from '../constants/overtime';
+import { OVERTIME_STEP_HOURS, getMaxDailyOvertimeHours, canLogOvertimeOnCategory } from '../constants/overtime';
 import { getContrastingTextColor } from '../utils/colorContrast';
 
 /**
@@ -60,6 +60,10 @@ interface ShiftBlockTileProps {
    * @param displayHours 目標顯示時數
    */
   onSetDayHours?: (dateStr: string, displayHours: number) => void;
+  /**
+   * 是否為例假（或調→例）——可登錄加班但須顯示原則禁止提醒。
+   */
+  mandatoryOvertimeCaution?: boolean;
 }
 
 /** 工時標籤／按鈕共用半透明樣式。 */
@@ -94,6 +98,7 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
   onAdjustOvertime,
   onTakeCompLeave,
   onSetDayHours,
+  mandatoryOvertimeCaution = false,
 }) => {
   /** 是否正在編輯時數。 */
   const [isEditingHours, setIsEditingHours] = useState(false);
@@ -111,7 +116,10 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
   const displayHours = Math.round((baseHours + overtimeHours - compLeaveHours) * 10) / 10;
 
   const canOvertime =
-    !!shiftType && shiftType.category === 'work' && !isPinned && !!onAdjustOvertime;
+    !!shiftType &&
+    canLogOvertimeOnCategory(shiftType.category) &&
+    !isPinned &&
+    !!onAdjustOvertime;
   const maxOt = shiftType ? getMaxDailyOvertimeHours(shiftType.workHours) : 0;
   // 當日已有補休時，＋先還原補休；否則在上限內加延長工時
   const canUndoCompLeave =
@@ -123,7 +131,7 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
   const canAddOt = canOvertime && overtimeHours < maxOt;
   const canPlus = canUndoCompLeave || canAddOt;
 
-  // 左側 −：優先取消當日延長工時（n+m → n）；當日無加班時才支用補休（n → n−m）
+  // 左側 −：優先取消當日延長工時；僅工作班且當日無加班時才支用補休
   const canReduceOt = canOvertime && overtimeHours >= OVERTIME_STEP_HOURS;
   const canTakeCompLeave =
     !!shiftType &&
@@ -135,13 +143,12 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
     baseHours - compLeaveHours >= OVERTIME_STEP_HOURS;
   const canMinus = canReduceOt || canTakeCompLeave;
 
-  /** 可否點擊時數直接輸入（工作班且未釘選）。 */
+  /** 可否點擊時數直接輸入（可登錄加班之班別且未釘選）。 */
   const canEditHours =
-    !!shiftType &&
-    shiftType.category === 'work' &&
-    !isPinned &&
-    !!onSetDayHours &&
-    (baseHours > 0 || displayHours > 0);
+    canOvertime && !!onSetDayHours;
+
+  /** 是否顯示時數列（可加班班別，含放假日 0H＋加號）。 */
+  const showHoursRow = canOvertime || overtimeHours > 0 || compLeaveHours > 0;
 
   const detailVisibleClass = colorOnlyOnNarrow ? 'hidden md:flex' : 'flex';
   const colorOnlyVisibleClass = colorOnlyOnNarrow ? 'flex md:hidden' : 'hidden';
@@ -149,7 +156,8 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
   const accessibleLabel = shiftType
     ? `${shiftType.code} ${shiftType.name}，${displayHours}H` +
       (overtimeHours > 0 ? `（含延長 ${overtimeHours}H）` : '') +
-      (compLeaveHours > 0 ? `（已補休 ${compLeaveHours}H）` : '')
+      (compLeaveHours > 0 ? `（已補休 ${compLeaveHours}H）` : '') +
+      (mandatoryOvertimeCaution ? '（例假：原則禁止加班）' : '')
     : '尚未排班';
 
   // 進入編輯時聚焦並全選
@@ -236,10 +244,12 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
     : `支用補休 ${OVERTIME_STEP_HOURS}H（庫存 ${compLeaveBankHours}H）`;
   const plusTitle = canUndoCompLeave
     ? `還原補休 +${OVERTIME_STEP_HOURS}H`
-    : `延長工時 +${OVERTIME_STEP_HOURS}H`;
+    : mandatoryOvertimeCaution
+      ? `例假原則禁止加班（僅天災事變等例外可出勤）＋${OVERTIME_STEP_HOURS}H`
+      : `延長工時 +${OVERTIME_STEP_HOURS}H`;
 
-  /** 工時列：[−] 可點擊／輸入時數 [＋] */
-  const hoursRow = (
+  /** 工時列：[−] 可點擊／輸入時數 [＋]；例假另標提醒 */
+  const hoursRow = showHoursRow ? (
     <div className="flex items-center justify-center gap-0.5 flex-wrap pointer-events-auto">
       {canMinus && !isEditingHours && (
         <button
@@ -251,10 +261,7 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
           <Minus className="w-3 h-3" />
         </button>
       )}
-      {shiftType &&
-        shiftType.category === 'work' &&
-        (baseHours > 0 || displayHours > 0) &&
-        (isEditingHours ? (
+      {isEditingHours ? (
           <input
             ref={hoursInputRef}
             type="number"
@@ -294,28 +301,41 @@ export const ShiftBlockTile: React.FC<ShiftBlockTileProps> = ({
               canEditHours
                 ? 'cursor-text hover:bg-black/35 hover:ring-1 hover:ring-white/40'
                 : 'cursor-default'
-            }`}
+            } ${mandatoryOvertimeCaution && overtimeHours > 0 ? 'ring-1 ring-amber-300/80' : ''}`}
             title={
               canEditHours
-                ? `點擊直接輸入工時（目前 ${displayHours}H）`
+                ? mandatoryOvertimeCaution
+                  ? `例假原則禁止加班；點擊輸入出勤時數（目前 ${displayHours}H）`
+                  : `點擊直接輸入工時（目前 ${displayHours}H）`
                 : accessibleLabel
             }
           >
             {displayHours}H
           </button>
-        ))}
+        )}
       {canPlus && !isEditingHours && (
         <button
           type="button"
           onClick={handlePlus}
-          className={hourBtnClass}
+          className={`${hourBtnClass} ${
+            mandatoryOvertimeCaution ? 'ring-1 ring-amber-300/70' : ''
+          }`}
           title={plusTitle}
         >
           <Plus className="w-3.5 h-3.5" />
         </button>
       )}
+      {mandatoryOvertimeCaution && (
+        <span
+          className="inline-flex items-center text-[9px] font-bold opacity-90 bg-amber-500/25 rounded px-1 py-0.5"
+          title="例假日原則禁止加班，僅天災、事變或突發事件例外"
+        >
+          <AlertTriangle className="w-2.5 h-2.5 mr-0.5" />
+          例
+        </span>
+      )}
     </div>
-  );
+  ) : null;
 
   return (
     <div

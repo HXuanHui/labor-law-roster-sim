@@ -14,6 +14,8 @@ import {
   getMaxDailyOvertimeHours,
   snapOvertimeHours,
   OVERTIME_STEP_HOURS,
+  canLogOvertimeOnCategory,
+  MANDATORY_OVERTIME_REMINDER,
 } from './constants/overtime';
 import { INITIAL_TAIWAN_HOLIDAYS } from './constants/taiwanHolidays';
 import {
@@ -25,6 +27,7 @@ import {
   getShiftType,
   isWorkShift,
   getCycleInfoForDate,
+  requiresMandatoryOvertimeCaution,
 } from './utils/laborLaws';
 import { Header } from './components/Header';
 import { SystemSelectorBar } from './components/SystemSelectorBar';
@@ -443,38 +446,80 @@ export default function App() {
   const handleCancelMakeupLink = () => setMakeupPick(null);
 
   /**
+   * 例假首次登錄加班時跳出強提醒；使用者取消則不寫入。
+   * @param category 班別類別
+   * @param dateStr 日期
+   * @param schedules 班表
+   * @param currentOt 目前加班時數
+   * @param nextOt 預計加班時數
+   * @returns 允許繼續時 true
+   */
+  const confirmMandatoryOvertimeIfNeeded = (
+    category: ShiftType['category'] | undefined,
+    dateStr: string,
+    schedules: Record<string, DayShift>,
+    currentOt: number,
+    nextOt: number
+  ): boolean => {
+    // 已有加班或未增加時不再跳窗；僅「首次從 0 變成有加班」提醒
+    if (currentOt > 0 || nextOt <= 0) return true;
+    if (!requiresMandatoryOvertimeCaution(category, dateStr, nationalHolidays, schedules)) {
+      return true;
+    }
+    return window.confirm(
+      `${MANDATORY_OVERTIME_REMINDER}\n\n日期：${dateStr}\n仍要登錄例假加班時數嗎？`
+    );
+  };
+
+  /**
    * 加減當日延長工時（步進 0.5H）；無紀錄時先實體化預設班別。
-   * 負向變動＝取消加班，檢核表「延長工時」會同步下降。
+   * 工作日／休息日／國假／調／例假皆可登錄；例假首次加量會跳強提醒。
    * @param empId 同仁 ID
    * @param dateStr 日期
    * @param deltaHours 變動量
    */
   const handleAdjustOvertime = (empId: string, dateStr: string, deltaHours: number) => {
+    const emp = employees.find((e) => e.id === empId);
+    if (!emp) return;
+    if (emp.schedules[dateStr]?.isPinned) return;
+
+    const current = emp.schedules[dateStr] ?? getEffectiveShift(emp.schedules, dateStr, nationalHolidays);
+    const st = shiftTypes.find((s) => s.id === current.shiftTypeId);
+    if (!st || !canLogOvertimeOnCategory(st.category)) return;
+
+    const maxOt = getMaxDailyOvertimeHours(st.workHours);
+    const currentOt = current.overtimeHours || 0;
+    const next = snapOvertimeHours(currentOt + deltaHours);
+    const capped = Math.min(maxOt, Math.max(0, next));
+
+    if (
+      !confirmMandatoryOvertimeIfNeeded(
+        st.category,
+        dateStr,
+        emp.schedules,
+        currentOt,
+        capped
+      )
+    ) {
+      return;
+    }
+
     setEmployees((prev) =>
       prev.map((e) => {
         if (e.id !== empId) return e;
         const existing = e.schedules[dateStr];
         if (existing?.isPinned) return e;
-
-        const current = existing ?? getEffectiveShift(e.schedules, dateStr, nationalHolidays);
-        const st = shiftTypes.find((s) => s.id === current.shiftTypeId);
-        if (!st || st.category !== 'work') return e;
-
-        const maxOt = getMaxDailyOvertimeHours(st.workHours);
-        // 下限 0：取消加班不可變成負數
-        const next = snapOvertimeHours((current.overtimeHours || 0) + deltaHours);
-        const capped = Math.min(maxOt, Math.max(0, next));
-
+        const cur = existing ?? getEffectiveShift(e.schedules, dateStr, nationalHolidays);
         return {
           ...e,
           schedules: {
             ...e.schedules,
             [dateStr]: {
-              ...current,
+              ...cur,
               date: dateStr,
               overtimeHours: capped > 0 ? capped : undefined,
               isOvertime: capped > 0,
-              compLeaveHours: current.compLeaveHours,
+              compLeaveHours: cur.compLeaveHours,
             },
           },
         };
@@ -484,7 +529,7 @@ export default function App() {
 
   /**
    * 直接設定當日顯示總工時（正常＋延長−補休）。
-   * 大於班別正常時數 → 登錄延長；小於 → 支用補休（受本月加班庫存與單日 12H 上限約束）。
+   * 放假日正常工時多為 0，輸入值即視為當日出勤／加班時數。
    * @param empId 同仁 ID
    * @param dateStr 日期
    * @param targetDisplayHours 目標顯示時數
@@ -494,56 +539,72 @@ export default function App() {
     dateStr: string,
     targetDisplayHours: number
   ) => {
+    const emp = employees.find((e) => e.id === empId);
+    if (!emp) return;
+    if (emp.schedules[dateStr]?.isPinned) return;
+
+    const current = emp.schedules[dateStr] ?? getEffectiveShift(emp.schedules, dateStr, nationalHolidays);
+    const st = shiftTypes.find((s) => s.id === current.shiftTypeId);
+    if (!st || !canLogOvertimeOnCategory(st.category)) return;
+
+    const base = st.workHours;
+    const maxOt = getMaxDailyOvertimeHours(base);
+    const currentOt = current.overtimeHours || 0;
+    const currentComp = current.compLeaveHours || 0;
+
+    const monthStart = format(startOfMonth(parseISO(dateStr)), 'yyyy-MM-dd');
+    const monthEnd = format(endOfMonth(parseISO(dateStr)), 'yyyy-MM-dd');
+    let otherOt = 0;
+    let otherUsed = 0;
+    Object.values(emp.schedules).forEach((ds) => {
+      if (ds.date < monthStart || ds.date > monthEnd || ds.date === dateStr) return;
+      otherOt += ds.overtimeHours || 0;
+      otherUsed += ds.compLeaveHours || 0;
+    });
+
+    const snappedTarget = snapOvertimeHours(Math.max(0, targetDisplayHours));
+    let nextOt = 0;
+    let nextComp = 0;
+
+    if (snappedTarget >= base) {
+      nextOt = snapOvertimeHours(Math.min(maxOt, snappedTarget - base));
+      nextComp = 0;
+    } else {
+      // 低於正常班才支用補休；放假日常時 base=0，不會走這支（改以清加班為主）
+      nextOt = 0;
+      if (st.category === 'work') {
+        const wantComp = snapOvertimeHours(base - snappedTarget);
+        const bank = Math.round((otherOt - otherUsed) * 10) / 10;
+        nextComp = snapOvertimeHours(Math.min(wantComp, Math.max(0, bank), base));
+      }
+    }
+
+    if (nextOt === currentOt && nextComp === currentComp) return;
+
+    if (
+      !confirmMandatoryOvertimeIfNeeded(
+        st.category,
+        dateStr,
+        emp.schedules,
+        currentOt,
+        nextOt
+      )
+    ) {
+      return;
+    }
+
     setEmployees((prev) =>
       prev.map((e) => {
         if (e.id !== empId) return e;
         const existing = e.schedules[dateStr];
         if (existing?.isPinned) return e;
-
-        const current = existing ?? getEffectiveShift(e.schedules, dateStr, nationalHolidays);
-        const st = shiftTypes.find((s) => s.id === current.shiftTypeId);
-        if (!st || st.category !== 'work') return e;
-
-        const base = st.workHours;
-        const maxOt = getMaxDailyOvertimeHours(base);
-        const currentOt = current.overtimeHours || 0;
-        const currentComp = current.compLeaveHours || 0;
-
-        // 本月其他日加班／補休（排除當日，以便重算庫存）
-        const monthStart = format(startOfMonth(parseISO(dateStr)), 'yyyy-MM-dd');
-        const monthEnd = format(endOfMonth(parseISO(dateStr)), 'yyyy-MM-dd');
-        let otherOt = 0;
-        let otherUsed = 0;
-        Object.values(e.schedules).forEach((ds) => {
-          if (ds.date < monthStart || ds.date > monthEnd || ds.date === dateStr) return;
-          otherOt += ds.overtimeHours || 0;
-          otherUsed += ds.compLeaveHours || 0;
-        });
-
-        const snappedTarget = snapOvertimeHours(Math.max(0, targetDisplayHours));
-        let nextOt = 0;
-        let nextComp = 0;
-
-        if (snappedTarget >= base) {
-          // 高於正常班：記入延長工時，清除當日補休
-          nextOt = snapOvertimeHours(Math.min(maxOt, snappedTarget - base));
-          nextComp = 0;
-        } else {
-          // 低於正常班：取消當日延長，再依庫存支用補休
-          nextOt = 0;
-          const wantComp = snapOvertimeHours(base - snappedTarget);
-          const bank = Math.round((otherOt - otherUsed) * 10) / 10;
-          nextComp = snapOvertimeHours(Math.min(wantComp, Math.max(0, bank), base));
-        }
-
-        if (nextOt === currentOt && nextComp === currentComp) return e;
-
+        const cur = existing ?? getEffectiveShift(e.schedules, dateStr, nationalHolidays);
         return {
           ...e,
           schedules: {
             ...e.schedules,
             [dateStr]: {
-              ...current,
+              ...cur,
               date: dateStr,
               overtimeHours: nextOt > 0 ? nextOt : undefined,
               isOvertime: nextOt > 0,
