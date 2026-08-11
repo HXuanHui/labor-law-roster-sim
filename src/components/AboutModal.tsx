@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Coffee, Heart, Info, MessageCircle, X } from 'lucide-react';
+import { Coffee, Heart, Info, MessageCircle, Sparkles, X } from 'lucide-react';
+import { RECENT_UPDATES } from '../constants/recentUpdates';
 
 /** 「關於」標籤頁識別碼。 */
-export type AboutTabId = 'tool' | 'feedback' | 'support';
+export type AboutTabId = 'tool' | 'updates' | 'feedback' | 'support';
 
 /**
  * 「關於」Modal 屬性。
@@ -33,15 +34,16 @@ interface AboutTab {
   icon: React.ReactNode;
 }
 
-/** 三個說明標籤（版面比照使用說明側欄）。 */
+/** 說明標籤順序：新增項目時一併遞延後續編號。 */
 const ABOUT_TABS: AboutTab[] = [
   { id: 'tool', title: '關於本工具', icon: <Info className="w-5 h-5" /> },
+  { id: 'updates', title: '近期更新', icon: <Sparkles className="w-5 h-5" /> },
   { id: 'feedback', title: '意見回饋', icon: <MessageCircle className="w-5 h-5" /> },
   { id: 'support', title: '支援維護', icon: <Coffee className="w-5 h-5" /> },
 ];
 
 /**
- * 「關於」：以標籤頁呈現工具緣起、回饋管道與支援維護。
+ * 「關於」：以標籤頁呈現工具緣起、近期更新、回饋管道與支援維護。
  *
  * @param props.isOpen 是否顯示
  * @param props.onClose 關閉回呼
@@ -87,7 +89,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
               >
                 關於
               </h2>
-              <p className="text-sm text-[#8A8A70] mt-0.5">工具緣起、回饋與支援維護</p>
+              <p className="text-sm text-[#8A8A70] mt-0.5">工具緣起、近期更新、回饋與支援維護</p>
             </div>
           </div>
           <button
@@ -155,6 +157,33 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                     </button>
                     。
                   </p>
+                </div>
+              )}
+
+              {activeTab.id === 'updates' && (
+                <div className="space-y-3">
+                  {/* 僅展示常數清單前三筆，維持「近三次」約定 */}
+                  {RECENT_UPDATES.slice(0, 3).map((entry) => (
+                    <article
+                      key={`${entry.date}-${entry.title}`}
+                      className="rounded-xl border border-[#E9E7D4] bg-[#F8F7EB] p-3.5 space-y-2"
+                    >
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                        <time
+                          dateTime={entry.date}
+                          className="text-xs font-bold text-[#8A8A70] tabular-nums"
+                        >
+                          {entry.date}
+                        </time>
+                        <h4 className="text-sm font-bold text-[#2D2D2D]">{entry.title}</h4>
+                      </div>
+                      <ul className="list-disc pl-5 space-y-1 text-[#2D2D2D]">
+                        {entry.highlights.map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    </article>
+                  ))}
                 </div>
               )}
 
